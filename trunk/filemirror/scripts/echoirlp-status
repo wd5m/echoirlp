@@ -1,0 +1,76 @@
+#!/bin/bash
+# $Id: echoirlp-status,v 1.7 2004/09/11 02:35:33 repeater Exp $
+# $Log: echoirlp-status,v $
+# Revision 1.7  2004/09/11 02:35:33  repeater
+# *** empty log message ***
+#
+# Revision 1.6  2004/09/11 02:30:45  repeater
+# minor edit.
+#
+# Revision 1.5  2004/08/13 19:35:28  repeater
+# Moved echo_update_hosts script to $ECHO_SCRIPT directory.
+#
+# Revision 1.4  2004/08/12 14:30:14  repeater
+# Corrected the other $CUSTOM for hostfile.
+#
+# Revision 1.3  2004/08/12 14:15:48  repeater
+# Corrected $CUSTOM to $ECHO_CUSTOM for echo_update_hosts on hostfile.
+#
+# Revision 1.2  2004/08/03 20:34:54  repeater
+# Update to handle new disconnected refused event from tbd to interrupt
+# the 20 second timeout wait in echo_call.
+#
+# Revision 1.1  2004/08/03 19:36:11  repeater
+# Initial revision
+#
+
+[ -z "$ECHO_SCRIPT" ] && ECHO_SCRIPT=/home/EchoIRLP/scripts
+   source $ECHO_SCRIPT/echo_common
+
+if [ "$1" != "hostfile" ]; then
+	log "$@"
+fi
+# Fix TERM setting so imike and others don't fail. (KF7FLY)
+if [ "$TERM" = "" -o "$TERM" = "unknown" -o "$TERM" = "dumb" ] ; then
+        export TERM=vt100
+fi
+
+if [ "$1" = "hostfile" ]; then
+   if [ -f "$ECHO_SCRIPT/echo_update_hosts" ]; then
+      "$ECHO_SCRIPT/echo_update_hosts"
+   fi
+fi
+
+if [ "$1" = "starting" ]; then
+   "$ECHO_SCRIPT"/echo_syscheck
+fi
+
+if [ -f "$LOCAL"/echo_conference ]; then 
+   # tbd is configured to run as a conference.  Disable all interaction
+   # between tbd and IRLP and run them independently.
+   echo "${0##*/}: Conference mode, RF link disabled"
+   exit 0
+fi
+
+if [ "$1" = "connected" ]; then
+   if [ "$2" = "echolink" ]; then
+      "$ECHO_SCRIPT"/echo_inbound $3 $4 $5
+   elif [ "$2" = "outbound" ] ; then
+      "$ECHO_SCRIPT"/call_status $3 $4 $5
+   fi
+  
+fi
+
+if [ "$1" = "disconnected" ]; then
+   if [ "$2" = "refused" -a -f "$LOCAL/echo_pending" ]; then
+      touch "$LOCAL/echo_refused"
+   elif [ ! -f "$LOCAL/echo_refused" ]; then
+      "$ECHO_SCRIPT/echo_disconnect" $3 $4 $2
+   fi
+fi
+
+if [ "$1" = "command" ]; then
+  if [ "$3" = "dtmf" ]; then
+   "$ECHO_SCRIPT"/dtmfregen $4 $2
+  fi
+fi

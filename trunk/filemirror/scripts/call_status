@@ -1,0 +1,4 @@
+#!/bin/bash
+
+# Assume outbound call successful, drop status file in $LOCAL
+echo $1 > $LOCAL/echo_outcall_ok

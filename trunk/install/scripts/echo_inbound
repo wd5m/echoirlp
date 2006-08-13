@@ -1,0 +1,252 @@
+#!/bin/bash
+# Syntax echo_inbound CALLSIGN No_of_connected_nodes
+
+# Check to see if system is configured as a conference
+if [ -f "$LOCAL"/echo_conference ]; then
+  # tbd is configured as a conference server, so abort to keep it independent.
+  exit 0
+fi
+
+# Determine if node is active 
+if [ ! -f "$LOCAL"/enable ] || [ ! -f "$LOCAL"/echo_enable ] ; then
+   # Node is not enabled, dump any incoming calls.
+   "$ECHO_TBD_COMMAND" "message EchoIRLP node disabled.  Please try again later."
+   sleep 1
+   "$ECHO_TBD_COMMAND" "play4 -u $1 nodedisabled"
+   sleep 6
+   $ECHO_TBD_COMMAND disconnect $1
+   exit 0
+fi
+
+# Determines node type for access control
+# check for conference first
+
+eval `echo "$1" | awk '/*/ {print "TYPE=conference"}' -`
+# Is this a link?
+if [ "$TYPE" = "" ] ; then 
+  eval `echo "$1" | awk '/-L/ {print "TYPE=link"}' -`
+fi
+# Is this a repeater?
+if [ "$TYPE" = "" ] ; then  
+  eval `echo "$1" | awk '/-R/ {print "TYPE=repeater"}' -`
+fi
+if [ "$TYPE" = "" ] ; then  
+  # Must be a Node number or Callsign
+  TYPE=user
+fi
+
+# Part of the prompt used in text mode
+CURS=">"
+
+LOCKOUT=NO
+
+# Check if we're locking out any of the node types
+# i.e. conferences, links, repeaters or PC users
+if [ -f "$ECHO_CUSTOM"/type_deny ]; then
+  if [ `grep -x "$TYPE" "$ECHO_CUSTOM/type_deny"` ]; then
+    LOCKOUT=YES
+  fi
+fi
+
+# Check for nodes which are explicitly locked out
+if [ -f "$ECHO_CUSTOM"/node_deny ]; then
+  if [ `grep -x "$1" "$ECHO_CUSTOM/node_deny"` ]; then
+    LOCKOUT=YES
+  fi
+fi
+
+# Check for nodes explicitly allowed.
+if [ -f "$ECHO_CUSTOM"/node_allow ]; then
+  if [ `grep -x "$1" "$ECHO_CUSTOM/node_allow"` ]; then
+    LOCKOUT=NO
+  fi
+fi
+
+if [ "$LOCKOUT" = "YES" ] ; then
+  # Incoming party not allowed to connect, inform
+  # and disconnect
+  "$ECHO_TBD_COMMAND" message "$ECHO_MYCALL$CURS"Your node is not allowed to connect to this node.
+  echo `date '+%b %d %Y %T %z'` "EchoIRLP: Inbound connection from $1 denied (Locked Out)" >> $LOGFILE
+  sleep 1
+  "$ECHO_TBD_COMMAND" "play4 -u $1 lockout_remote"
+  sleep 10
+  "$ECHO_TBD_COMMAND" disconnect "$1"
+  exit 0
+fi
+
+
+if [ ! -f "$LOCAL"/echoirlp ] ; then
+
+   if [ -f "$ACTIVE" ] ; then
+      # IRLP or shared conf call in progress.  Inform Echolink user and disconnect.
+      if [ -f "$LOCAL"/echo_active ] ; then
+         ECHOCONF=`cat "$LOCAL"/echo_call`
+         "$ECHO_TBD_COMMAND" message "$ECHO_MYCALL$CURS"System connected to Echolink shared conference $ECHOCONF. Please try again later.
+         $ECHO_SCRIPT/echo_wavgen $LOCAL/echo_call
+         $ECHO_SCRIPT/wavprep $AUDIO/busynode $ECHO_AUDIO/echo_id
+         echo `date '+%b %d %Y %T %z'` "EchoIRLP: Busy EchoLink shared conference $ECHOCONF" >> $LOGFILE
+      else
+         IRLPNODE=`cat "$LOCAL"/active`
+         "$ECHO_TBD_COMMAND" message "$ECHO_MYCALL$CURS"System connected to IRLP node `cat "$LOCAL"/active`.  Please try again later.
+         $ECHO_SCRIPT/echo_wavgen $LOCAL/active
+         $ECHO_SCRIPT/wavprep $AUDIO/busynode $AUDIO/nodenum $ECHO_AUDIO/echo_id
+         echo `date '+%b %d %Y %T %z'` "EchoIRLP: Busy IRLP $IRLPNODE" >> $LOGFILE
+      fi
+      "$ECHO_TBD_COMMAND" "play4 -u $1 wavefile"
+      sleep 10
+      $ECHO_TBD_COMMAND disconnect $1
+      exit 0
+   else
+      if [ -f "$LOCAL"/echoidle ] ; then
+         # System is in echo idle state, allow incoming connects 
+         echo "Idle in Echolink state, connection automatically accepted."
+         exit 0
+      fi
+      # Node is idle and accepting calls
+      # Need to check if frequency is busy before accepting Echolink call
+
+      if [ -f $LOCAL/cos_active ] ; then
+         # System is busy locally, inform connecting EchoLink party
+         # and disconnect
+         "$ECHO_TBD_COMMAND" message "$ECHO_MYCALL$CURS"System is busy with local traffic.  Please try again later.
+         echo `date '+%b %d %Y %T %z'` "EchoIRLP: Busy Local" >> $LOGFILE
+         sleep 1
+         "$ECHO_TBD_COMMAND" "play4 -u $1 nodeinuse"
+         sleep 6
+         "$ECHO_TBD_COMMAND" disconnect "$1"
+         exit 0
+      fi
+
+      if [ "$REPORTBUSY" = "YES" ] ; then
+         if ! $BIN/cosstate ; then
+            # System is busy locally, inform connecting EchoLink party
+            # and disconnect
+            $ECHO_TBD_COMMAND message "$ECHO_MYCALL$CURS"System is busy with local traffic.  Please try again later.
+            echo `date '+%b %d %Y %T %z'` "EchoIRLP: Busy Local" >> $LOGFILE
+            sleep 1
+            "$ECHO_TBD_COMMAND" "play4 -u $1 nodeinuse"
+            sleep 6
+            $ECHO_TBD_COMMAND disconnect $1
+            exit 0
+         fi
+      fi
+      # Play welcome file to calling node if exists KF7FLY
+      if [ -f "$ECHO_TBD_DATA/welcomeconnect.tbd" ]; then
+          echo Playing welcome file...
+         "$ECHO_TBD_COMMAND" "play4 -u $1 welcomeconnect.tbd"  > /dev/null 2>&1 &
+          echo done
+      fi
+
+      # Set connection files
+      # Set IRLP Status as connected to self
+      #If the length of the stantionid is 6 (old three digit), it adds a zero
+      if [ ${#STATIONID} = "6" ] ; then 
+         CONVERTED_STATIONID="$STATIONID"0
+      else
+         CONVERTED_STATIONID="$STATIONID"
+      fi
+      echo $CONVERTED_STATIONID > "$LOCAL"/active
+      if [ "$TYPE" = "conference" ]; then
+        ECHO_NODE_ID=`grep "$1" "$ECHO_TBD_DATA"/hosts | cut -f3 | cut -d'#' -f2 | cut -d' ' -f2`
+      else
+        ECHO_NODE_ID=`grep "[[:space:]]$1[[:space:]]" "$ECHO_TBD_DATA/hosts" | \
+        cut -f3 | cut -d'#' -f2 | cut -d' ' -f2`  #KF7FLY
+      fi
+      if [ "$ECHO_NODE_ID" = "" ] ; then        #KF7FLY
+         ECHO_NODE_ID=`"$ECHO_BIN/echostatus" "$ECHO_SERVER" R | \
+         grep "^$1[[:space:]]" | cut -f3`       #KF7FLY
+      fi        #KF7FLY
+      echo "$ECHO_NODE_ID" > $LOCAL/echo_active
+      echo "$ECHO_TBD_HOST" > $LOCAL/calledip
+      echo "GSM" > $LOCAL/selectcodec
+      echo "GSM" > $LOCAL/codec
+      echo $1 > $LOCAL/echo_call
+      if [ "$ECHO_TBD_LISTEN" = "" ] ; then ECHO_TBD_LISTEN=2074 ; fi
+      if [ "$ECHO_TBD_SEND" = "" ] ; then ECHO_TBD_SEND="$ECHO_TBD_LISTEN" ; fi
+      if [ "$ECHO_TBD_SEND" != "2074" ] ; then
+         echo "$ECHO_TBD_SEND" > "$LOCAL"/udp_port
+      fi
+      touch "$LOCAL"/echoirlp
+   fi
+
+   $ECHO_SCRIPT/echo_on $ECHO_NODE_ID $1 $CONVERTED_STATIONID & #KF7FLY
+
+   # Set timeout values
+
+   eval `echo $1 | awk '{
+        print "FIRSTCHAR="substr($1,1,1)}'`
+    
+   # If a conference, apply IRLP reflector idle timeout value
+   # If not a conference, apply Echolink idle timeout if it is set
+   # Otherwise apply IRLP node-node timeout
+   if [ "$FIRSTCHAR" = "*" ] ; then  #KF7FLY, modified by VK3JED
+     if [ -n "$REFLECT_TIMEOUT_VALUE" ] && [ "$REFLECT_TIMEOUT_VALUE" != "0" ] ; then
+       cp -f "$CUSTOM/timeoutvalue" "$CUSTOM/timeoutvalue.temp" >/dev/null 2>&1
+       echo "$REFLECT_TIMEOUT_VALUE" > "$CUSTOM/timeoutvalue"
+       killall dtmf >/dev/null 2>&1
+       "$CUSTOM"/rc.mixer > /dev/null 2>&1
+       dtmf > /dev/null 2>&1
+     else
+       rm -f "$LOCAL"/timeout
+     fi
+   else
+     if [ -n "$ECHO_TIMEOUT_VALUE" ]; then
+       if [ "$ECHO_TIMEOUT_VALUE" = "0" ]; then
+         rm -f "$LOCAL"/timeout
+       else
+         cp -f "$CUSTOM/timeoutvalue" "$CUSTOM/timeoutvalue.temp" >/dev/null 2>&1
+         echo "$ECHO_TIMEOUT_VALUE" > "$CUSTOM/timeoutvalue"
+         killall dtmf >/dev/null 2>&1
+         "$CUSTOM"/rc.mixer > /dev/null 2>&1
+         dtmf > /dev/null 2>&1
+       fi
+     fi 
+   fi
+    
+
+   if [ "$2" = "notimeout" ] ; then
+      rm -f "$LOCAL"/timeout
+   fi
+
+   if [ "$CUSTOM_ON" = "YES" ] ; then
+      if [ -f $CUSTOM/custom_on ] ; then
+         $CUSTOM/custom_on "$1" "$2" "$3" "$4"
+      fi
+   fi
+  
+   if [ "$ECHO_SAY_NODE" = "NO" ] ; then
+      "$ECHO_SCRIPT"/echo_wavplay echolinkon
+   else
+      # callsing or node
+     if [ "$ECHO_SAY_NODE" = "YES" ] ; then
+        "$ECHO_SCRIPT"/echo_wavgen "$LOCAL"/echo_active
+     else
+        "$ECHO_SCRIPT"/echo_wavgen "$LOCAL"/echo_call
+     fi
+     "$ECHO_SCRIPT"/echo_wavplay echolinkon echo_id
+   fi
+   "$BIN"/unkey
+  
+   # Set Environment Variables for Speak Freely
+   export SPEAKFREE_CNAME="CALLSIGN"
+   export SPEAKFREE_ID="$ECHO_NODE_DESC"::"$ECHO_TBD_PASSWD"
+     
+   IMIKEFLAG="-t"
+   if [ "$3" = "listenonly" ] ; then IMIKEFLAG2="-h -a -s32767,10" ; fi
+
+   $SCRIPT/sfswrapper
+
+   IMIKEFLAG3="$ECHO_TBD_HOST":"$ECHO_TBD_LISTEN"
+
+   if [ "$PCI_FIX" = "YES" ] ; then
+      "$BIN"/imike_PCI "$IMIKEFLAG" $IMIKEFLAG2 $IMIKEFLAG3 >/dev/null 2>&1 &
+   else
+      "$BIN"/imike "$IMIKEFLAG" $IMIKEFLAG2 $IMIKEFLAG3 >/dev/null 2>&1 &
+   fi
+
+   # At this point, we should be connected. 
+else
+   echo System already conected.
+   # Echolink call is already active, just log connected station and
+   # take no further action as IRLP side is already setup
+fi

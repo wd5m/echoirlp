@@ -1,0 +1,52 @@
+#!/bin/bash
+#################################################################
+#                                                         	#                  
+#  Released under the GNU Public License                  	#                  
+#                                                         	#    	              
+#  Script   :  echo_enable                                	#
+#  Author   :  Marcus Xenakis WA2DCI                      	#
+#  Version  :  .13 Beta                                   	#
+#  Date     :  3/15/03                                    	#
+#  About    :  This script enables EchoLink               	#
+#              IRLP must be enbled for EchoIRLP                 #
+#  Modified :  3/15/03 to use forcekey/forceunkey               #
+#              1/03/04 VK2XJG added check for repeater user     #
+#################################################################
+
+# Make sure we are user repeater!!!
+if [ `/usr/bin/whoami` != "repeater" ] ; then
+  echo This program must be run as user REPEATER!
+  exit 1
+fi
+
+# Make sure we have sourced the environment file
+if [ "$RUN_ENV" != "TRUE" ] ; then
+  . /home/irlp/custom/environment
+fi
+
+# Make sure we have sourced the EchoLinux environment file
+if [ "$ECHO_ENV" != "TRUE" ] ; then
+  echo "You must add EchoIRLP environment variables to the environment file."
+  echo "Check your installtion instructions."
+  exit 1
+fi
+
+# Exits if node is not enabled
+if [ -f "$LOCAL"/echo_enable ] ; then 
+  echo "The node is already enabled"
+  exit 0
+fi
+
+touch "$LOCAL"/echo_enable
+
+"$BIN"/forcekey
+usleep ${TXDELAY:-250000}
+play "$ECHO_AUDIO"/echoenabled.wav
+usleep 250000
+"$BIN"/forceunkey
+
+"$ECHO_SCRIPT"/echo_status update
+
+exit 0
+
+

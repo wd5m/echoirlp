@@ -1,0 +1,25 @@
+#!/bin/bash
+###########################################################
+#                                                         #                  
+#  Released under the GNU Public License                  #                  
+#                                                         #                  
+#  Script :  echo_busy                                    #
+#  Author :  Marcus Xenakis WA2DCI                        #
+#  Version:  .10 Beta                                     #
+#  Date   :  1/4/03                                       #
+#  About  :  This sripts tests to see if we are in an     #
+#            active EchoLink call amd reports status as   #
+#            "busy" to EchoLink                           #
+#                                                         #
+###########################################################
+
+. /home/irlp/custom/environment
+
+# I not an EchoLink connection call normal IRLP end
+if [ -f "$LOCAL"/echo_active ] ; then 
+   "$ECHO_BIN"/echostatus $ECHO_SERVER B
+fi  
+
+exit 0
+
+

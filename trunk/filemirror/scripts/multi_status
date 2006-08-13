@@ -1,0 +1,25 @@
+#!/bin/bash
+
+[ -z "$ECHO_SCRIPT" ] && ECHO_SCRIPT=/home/EchoIRLP/scripts
+   source $ECHO_SCRIPT/echo_common
+
+# check if node enabled
+if [ ! -f "$LOCAL"/enable ] ; then
+   NETWORK=none
+   NODE=DISABLE
+else
+   if [ -f "$LOCAL"/active ] ; then
+      if [ -f "$LOCAL"/echo_active ] ; then
+         NETWORK=EchoLink
+         NODE=`cat "$LOCAL"/echo_call`
+      else
+         NETWORK=IRLP
+         NODE=`cat "$LOCAL"/active`
+      fi
+   else
+      NETWORK=none
+      NODE=idle
+   fi
+fi
+
+echo "${0##*/}: $NETWORK $NODE"

@@ -1,0 +1,51 @@
+#!/bin/bash
+
+GT=">"
+# Make sure we are user repeater!!!
+if [ "`/usr/bin/whoami`" != "repeater" ] ; then
+  echo "This program must be run as user REPEATER!"
+  exit 1
+fi
+
+# Make sure we have sourced the environment file
+if [ "$RUN_ENV" != "TRUE" ] ; then
+  echo "You must source the environment file first. Do this by running:"
+  echo ". /home/irlp/custom/environment"
+  exit 1
+fi
+
+# Make sure we have sourced the environment file
+if [ "$ECHO_ENV" != "TRUE" ] ; then
+  echo "You must source the environment file first. Do this by running:"
+  echo ". /home/irlp/custom/environment"
+  exit 1
+fi
+
+if [ -f "$LOCAL"/echoidle ] ; then
+  # System is set to idle on Echolink connection, have
+  # just come out of IRLP connection, need to reconnect to Echolink silently
+  
+  # Reconnect to Echolink node
+  "$ECHO_TBD_COMMAND" -q connect `cat "$ECHO_CUSTOM"/echo-idle`
+  if [ "$ECHO_TBD_LISTEN" = "" ] ; then ECHO_TBD_LISTEN=2074 ; fi
+  if [ "$ECHO_TBD_SEND" = "" ] ; then ECHO_TBD_SEND="$ECHO_TBD_LISTEN" ; fi
+  # Set Environment Variables for Speak Freely
+  export SPEAKFREE_CNAME="CALLSIGN" 
+  export SPEAKFREE_ID="$ECHO_NODE_DESC"::"$ECHO_TBD_PASSWD"
+
+  killall imike
+  killall imike_PCI
+  IMIKEFLAG="-t"
+
+  "$ECHO_SCRIPT"/sfswrapper
+
+  IMIKEFLAG3="$ECHO_TBD_HOST":"$ECHO_TBD_LISTEN"
+
+  if [ "$PCI_FIX" = "YES" ] ; then
+    "$BIN"/imike_PCI "$IMIKEFLAG" $IMIKEFLAG2 $IMIKEFLAG3 >/dev/null 2>&1 &
+  else
+    "$BIN"/imike "$IMIKEFLAG" $IMIKEFLAG2 $IMIKEFLAG3 >/dev/null 2>&1 &
+  fi
+
+  "$ECHO_TBD_COMMAND" -q message "$ECHO_MYCALL$GT EchoIRLP node back from IRLP call."
+fi
