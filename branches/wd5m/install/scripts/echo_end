@@ -1,0 +1,158 @@
+#!/bin/bash
+###########################################################
+#                                                         #                  
+#  Released under the GNU Public License                  #                  
+#                                                         #                  
+#  Script :  echo_end                                     #
+#  Author :  Marcus Xenakis WA2DCI                        #
+#  Version:  .15 Beta                                     #
+#  Date   :  3/22/03                                      #
+#  About  :  This script tests to see if the last call    #
+#            was EchoLink or IRLP. Passes to normal IRLP  #
+#            "end" script if not an EchoLink call         #
+#                                                         #
+###########################################################
+
+# Make sure we are user repeater!!!
+if [ `/usr/bin/whoami` != "repeater" ] ; then
+  echo This program must be run as user REPEATER!
+  exit 1
+fi
+
+# Make sure we have sourced the environment file
+if [ "$RUN_ENV" != "TRUE" ] ; then
+  . /home/irlp/custom/environment
+fi
+
+# Make sure we have sourced the EchoLinux environment file
+if [ "$ECHO_ENV" != "TRUE" ] ; then
+  echo "You must add EchoIRLP environment variables to the environment file."
+  echo "Check your installtion instructions."
+  exit 1
+fi
+
+# Abort if no connection in progress to prevent killing echo-idle
+if [ -f "$LOCAL"/echoidle ]; then
+  # EchoIRLP is active, need to check if connection in place
+  if [ ! -f "$LOCAL"/active ]; then 
+    echo "Restoring EchoIdle connection."
+    # No official connection, check that imike and ispeaker are running
+    # then abort
+    "$ECHO_SCRIPT"/sfswrapper
+    killall imike
+    killall imike_PCI
+    # Set Environment Variables for Speak Freely
+    export SPEAKFREE_CNAME="CALLSIGN" 
+    export SPEAKFREE_ID="$ECHO_NODE_DESC"::"$ECHO_TBD_PASSWD"
+
+    IMIKEFLAG="-t"
+
+    IMIKEFLAG3="$ECHO_TBD_HOST":"$ECHO_TBD_LISTEN"
+    if [ "$PCI_FIX" = "YES" ] ; then
+      "$BIN"/imike_PCI "$IMIKEFLAG" $IMIKEFLAG2 $IMIKEFLAG3 >/dev/null 2>&1 &
+    else
+      "$BIN"/imike "$IMIKEFLAG" $IMIKEFLAG2 $IMIKEFLAG3 >/dev/null 2>&1 &
+    fi
+  exit 0
+  fi
+fi
+
+# I not an EchoLink connection call normal IRLP end
+if [ ! -f "$LOCAL"/echo_active ] ; then 
+  "$SCRIPT"/end &
+  exit 0
+fi  
+
+# Check that disconnect not already in progress
+if [ -f "$LOCAL"/echo_disconnecting ] ; then
+  echo "Disconnect already in progress, aborting..."
+  exit 0
+fi
+
+# Set "in progress" flag
+touch $LOCAL/echo_disconnecting
+
+if [ -f "$CUSTOM/timeoutvalue.temp" ] ; then    #KF7FLY
+  mv -f "$CUSTOM/timeoutvalue.temp" "$CUSTOM/timeoutvalue" >/dev/null 2>&1
+  killall dtmf > /dev/null 2>&1
+  "$CUSTOM"/rc.mixer > /dev/null 2>&1
+  dtmf > /dev/null 2>&1
+fi      #KF7FLY
+
+killall imike >/dev/null 2>&1
+killall ispeaker >/dev/null 2>&1
+killall imike_PCI >/dev/null 2>&1
+killall ispeaker_PCI >/dev/null 2>&1
+
+$BIN/key
+
+"$SCRIPT"/fifoecho "$STATIONID" disconnect
+"$SCRIPT"/dropcall
+
+NODE_CALL=`cat "$LOCAL"/echo_call`
+echo "$NODE_CALL"
+
+#LOGS the disconnect 
+echo `date '+%b %d %Y %T %z'` "Node Disconnect from EchoLink `cat $LOCAL/echo_active` `cat $LOCAL/echo_call`" >> "$LOGFILE"
+
+if [ -f "$LOCAL"/echoirlp ] ; then
+  # Disconnect from destination node
+  $ECHO_TBD_COMMAND disconnect $NODE_CALL
+  echo "$ECHO_TBD_COMMAND" $NODE_CALL
+  rm -f "$LOCAL"/echoirlp
+else
+# Otherwise we're using a shared conference - update our status
+  "$ECHO_BIN"/echostatus $ECHO_SERVER O
+fi
+
+# Save Node numbers
+NODE_ID=`cat "$LOCAL"/echo_active`
+CONVERTED_STATIONID=`cat "$LOCAL"/active`
+
+if [ "$ECHO_SAY_NODE" = "NO" ] ; then
+  "$ECHO_SCRIPT"/echo_wavplay echolinkoff
+else 
+  "$ECHO_SCRIPT"/echo_wavplay echolinkoff echo_id
+fi
+
+# remove status flags
+rm -f "$LOCAL"/echo_active
+rm -f "$LOCAL"/echo_call
+rm -f "$LOCAL"/codec
+rm -f "$LOCAL"/selectcodec
+rm -f "$LOCAL"/udp_port
+rm -f "$LOCAL"/preaccess
+rm -f "$LOCAL"/connectedip
+rm -f "$LOCAL"/calledip
+rm -f "$RUN"/*
+rm -f "$LOCAL"/echo_active
+rm -f "$LOCAL"/active
+rm -f :"$LOCAL"/node_id
+
+# Reset timeout
+touch "$LOCAL"/timeout
+
+#added for the really fast machines :)
+sleep 1
+
+if [ "$CUSTOM_OFF" = "YES" ] ; then
+  if [ -f "$CUSTOM"/custom_off ] ; then
+    "$CUSTOM"/custom_off $1
+  fi
+fi
+
+# Update IRLP status
+"$SCRIPT"/statupdate &
+
+# Update WA2DCI Status
+eval `echo "$CONVERTED_STATIONID" | awk '//{print "NODE="substr($NODE,4,4)}'`
+PARM=$NODE:$CALLSIGN:0:OFF
+URL="http://xenakis.net/wa2dci/echoirlp/statupdate.php?"
+#lynx -auth=zombo:swazzi -source "$URL$PARM" > /dev/null &
+
+"$BIN"/unkey
+
+# Clear disconnect lock
+rm -f $LOCAL/echo_disconnecting
+
+exit 0

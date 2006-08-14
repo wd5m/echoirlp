@@ -1,0 +1,41 @@
+#!/bin/bash
+. /home/irlp/custom/environment
+
+if [ "$1" != "hostfile" ]; then
+	echo "`date '+%b %d %Y %T %z'` EchoIRLP: $@" >> $LOGFILE
+fi
+# Fix TERM setting so imike and others don't fail. (KF7FLY)
+if [ "$TERM" = "" -o "$TERM" = "unknown" -o "$TERM" = "dumb" ] ; then
+        export TERM=vt100
+fi
+
+if [ "$1" = "hostfile" ]; then
+   if [ -f "$CUSTOM"/echo_update_hosts ]; then
+      "$CUSTOM"/echo_update_hosts
+   fi
+fi
+
+if [ "$1" = "starting" ]; then
+   "$ECHO_SCRIPT"/echo_syscheck
+fi
+
+if [ -f "$LOCAL"/echo_conference ]; then 
+   # tbd is configured to run as a conference.  Disable all interaction
+   # between tbd and IRLP and run them independently.
+   echo "Conference mode, RF link disabled"
+   exit 0
+fi
+
+if [ "$1" = "connected" ]; then
+   if [ "$2" = "echolink" ]; then
+      "$ECHO_SCRIPT"/echo_inbound $3 $4 $5
+   elif [ "$2" = "outbound" ] ; then
+      "$ECHO_SCRIPT"/call_status $3 $4 $5
+   fi
+  
+fi
+
+if [ "$1" = "disconnected" ]; then
+   "$ECHO_SCRIPT"/echo_disconnect $3 $4 $2
+fi
+

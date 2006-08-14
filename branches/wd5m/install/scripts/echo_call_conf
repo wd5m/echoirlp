@@ -1,0 +1,240 @@
+#!/bin/bash
+###########################################################
+#                                                         #                  
+#  Released under the GNU Public License                  #                  
+#                                                         #                  
+#  Script :  echo_call_conf                               #
+#  Author :  Marcus Xenakis WA2DCI                        #
+#  Version:  .15 Beta                                     #
+#  Date   :  3/30/03                                      #
+#  About  :  A script to connect an IRLP node to an       # 
+#            EchoLink conference server running           #
+#            "thebridge" software                         #
+#            This is a modified version of the            #
+#            connect_to_conferencea script written by     #
+#            Tony Langdon VK3JED                          #
+# Modified:  3/13/03 To check for active connections      #
+#            3/15/03 To check for timed-out connections   #
+#            3/15/03 To overwrite stnxxx files            #
+#            3/20/03 to use a forked process stats & log  #
+#            3/30/03 use echo_wavgen                      #
+#                                                         #
+###########################################################
+
+# Make sure we are user repeater!!!
+if [ `/usr/bin/whoami` != "repeater" ] ; then
+  echo This program must be run as user REPEATER!
+  exit 1
+fi
+
+# Make sure we have sourced the environment file
+if [ "$RUN_ENV" != "TRUE" ] ; then
+  . /home/irlp/custom/environment
+fi
+
+# Make sure we have sourced the EchoLinux environment file
+if [ "$ECHO_ENV" != "TRUE" ] ; then
+  echo "You must add EchoIRLP environment variables to the environment file."
+  echo "Check your installtion instructions."
+  exit 1
+fi
+
+# Exits if node is not enabled
+if [ ! -f "$LOCAL"/enable -o ! -f "$LOCAL"/echo_enable ] ; then 
+  echo "The node is not enabled"
+  exit 0
+fi
+
+# Checks to make sure that the audio devices are readable by the repeater user
+if [ ! -w /dev/audio ] || [ ! -w /dev/mixer ] || [ ! -w /dev/dsp ] ; then
+  echo AUDIO DEVICES NOT SET CORRECT
+  $SCRIPT/failure audiodev
+  $SCRIPT/disable
+  exit 1
+fi
+
+# Clean-up in case we timed-out
+if [ ! -f "$LOCAL"/active -a -f "$LOCAL"/echo_active ] ; then 
+  rm -f "$LOCAL"/echo_active
+  rm -f "$LOCAL"/echo_call
+  rm -f "$LOCAL"/node_id
+fi
+
+# Check for an active EchoLink connection first
+if [ -f "$LOCAL"/echo_active ] ; then
+  killall ispeaker >/dev/null 2>&1 &
+  killall ispeaker_PCI >/dev/null 2>&1 &
+  echo "(EchoLink)Your node is currently connected to $CONNECTED"
+  # callsing or node
+  if [ $ECHO_SAY_NODE="CALLSIGN" ] ; then 
+     "$ECHO_SCRIPT"/echo_wavgen "$LOCAL"/echo_call
+  else 
+     "$ECHO_SCRIPT"/echo_wavgen "$LOCAL"/echo_active
+  fi
+  "$ECHO_SCRIPT"/echo_wavplay connected echolink echo_id
+  "$SCRIPT"/sfswrapper
+  exit 0
+fi
+
+# Now check for an active IRLP connection
+if [ -f "$LOCAL"/active ]; then
+  CONNECTED=`cat "$LOCAL"/active`
+  killall ispeaker >/dev/null 2>&1 &
+  killall ispeaker_PCI >/dev/null 2>&1 &
+  echo "(IRLP) Your node is currently connected to $CONNECTED"
+  if [ ! -f "$AUDIO"/"$CONNECTED".wav ] ; then
+     eval `echo $CONNECTED | awk '{print "NODE_ID="substr($TEXT,4,4)}'`
+     echo $NODE_ID > "$LOCAL"/node_id
+     "$ECHO_SCRIPT"/echo_wavgen "$LOCAL"/node_id
+     "$ECHO_SCRIPT"/echo_wavplay connected nodenum echo_id
+  else
+     "$SCRIPT"/wavplay connected $CONNECTED
+  fi
+  "$SCRIPT"/sfswrapper
+  exit 0
+fi
+
+"$BIN"/key
+
+# Are we using tbd, if so, make use of it for resolving conf name and address
+# Means we don't need the echoLinux directory client running.
+
+if [ "$ECHO_TBD_ENABLE" = "YES" ]; then
+   echo "Using tbd to resolve names and IP addresses"
+   # Find node number in tbd's hosts file
+   NODE_CALL=`"$ECHO_BIN"/parse $1 2`
+   # The following error occurs when the node number is
+   # not online or we had a connection error with the status
+   # server. You may choose which wav file you prefer.
+   if [ "$NODE_CALL" = "Not Found" ] ; then
+       echo "$1 Not Found"
+       $SCRIPT/wavplay norespond
+       # $SCRIPT/wavplay error
+         exit 1
+    fi
+    # Retrieve IP Address
+    NODE_IP=`"$ECHO_BIN"/parse $1 1` 
+    # Find node callsign in password file
+    CONF_NAME=`grep "$NODE_CALL" "$ECHOLINUX"/echo_conf | cut -f1`
+    if [ "$CONF_NAME" != "$NODE_CALL" ] ; then
+      echo "$1 Conference password not on file"
+      $SCRIPT/wavplay failauth
+      exit 1
+   fi
+elif [ "$ECHO_SERVERS" = "YES" ] ; then
+
+   echo "Using EchoLinux directory client"
+   # Find Node Number on Status Page
+    
+   NODE_CALL=`"$ECHO_BIN"/echoparse $1 1`
+
+   # The following error occurs when the node number is 
+   # not online or we had a connection error with the status
+   # server. You may choose which wav file you prefer.
+   if [ "$NODE_CALL" = "Not Found" ] ; then
+       echo "$1 Not Found"
+       $SCRIPT/wavplay norespond
+       # $SCRIPT/wavplay error
+         exit 1
+    fi
+    # Retrieve IP Address
+    NODE_IP=`"$ECHO_BIN"/echoparse $1 4`
+    # Find node callsign in password file
+    CONF_NAME=`grep "$NODE_CALL" "$ECHOLINUX"/echo_conf | cut -f1`
+    if [ "$CONF_NAME" != "$NODE_CALL" ] ; then
+      echo "$1 Conference password not on file"
+      $SCRIPT/wavplay failauth
+      exit 1
+   fi
+else
+    echo "Using conf_pwd file"
+    NODE_CALL=`grep "$1" "$ECHOLINUX"/echo_conf | cut -f1`
+    if [ "$NODE_CALL" = "" ] ; then
+      echo "$1 Conference not on file"
+      $SCRIPT/wavplay failauth
+      exit 1
+    fi
+    NODE_IP=`grep "$1" "$ECHOLINUX"/echo_conf | cut -f4`
+    CONF_NAME=$NODE_CALL
+fi
+
+# Retreive Conference Password  
+CONF_PASSWD=`grep "$CONF_NAME" "$ECHOLINUX"/echo_conf | cut -f2`
+if [ ! "$CONF_PASSWD" ] ; then
+  echo "$1 Conference password not on file"
+  $SCRIPT/wavplay failauth
+  exit 1
+fi
+
+# Set connection files
+# Set IRLP Status as connected to self
+#If the length of the stantionid is 6 (old three digit), it adds a zero
+if [ ${#STATIONID} = "6" ] ; then 
+  CONVERTED_STATIONID="$STATIONID"0
+else
+  CONVERTED_STATIONID="$STATIONID"
+fi
+echo $CONVERTED_STATIONID > "$LOCAL"/active
+echo "$1" > $LOCAL/echo_active
+echo "$NODE_IP" > $LOCAL/calledip
+echo "GSM" > $LOCAL/selectcodec
+echo "GSM" > $LOCAL/codec
+echo $NODE_CALL > $LOCAL/echo_call
+
+$ECHO_SCRIPT/echo_on $1 $NODE_CALL $CONVERTED_STATIONID &
+
+# Set timeout values
+if [ -n "$REFLECT_TIMEOUT_VALUE" ] && [ "$REFLECT_TIMEOUT_VALUE" != "0" ] ; then
+  cp -f "$CUSTOM/timeoutvalue" "$CUSTOM/timeoutvalue.temp" >/dev/null 2>&1
+  echo "$REFLECT_TIMEOUT_VALUE" > "$CUSTOM/timeoutvalue"
+  killall dtmf >/dev/null 2>&1
+  "$CUSTOM"/rc.mixer > /dev/null 2>&1
+  dtmf > /dev/null 2>&1
+else
+  rm -f "$LOCAL"/timeout
+fi
+
+if [ "$2" = "notimeout" ] ; then
+  rm -f "$LOCAL"/timeout
+fi  
+
+if [ "$CUSTOM_ON" = "YES" ] ; then
+  if [ -f $CUSTOM/custom_on ] ; then
+    $CUSTOM/custom_on "$1" "$2" "$3" "$4"
+  fi
+fi
+
+if [ "$ECHO_SAY_NODE" = "NO" ] ; then
+  "$ECHO_SCRIPT"/echo_wavplay echolinkon
+else 
+  # callsing or node
+  if [ "$ECHO_SAY_NODE" = "YES" ] ; then 
+     "$ECHO_SCRIPT"/echo_wavgen "$LOCAL"/echo_active
+  else 
+     "$ECHO_SCRIPT"/echo_wavgen "$LOCAL"/echo_call
+  fi
+  "$ECHO_SCRIPT"/echo_wavplay echolinkon echo_id
+fi
+"$BIN"/unkey
+
+# Set Environment Variables for Speak Freely
+export SPEAKFREE_CNAME="CALLSIGN" 
+export SPEAKFREE_ID="$ECHO_NODE_DESC"::"$CONF_PASSWD"
+
+IMIKEFLAG="-t"
+
+if [ "$3" = "listenonly" ] ; then IMIKEFLAG2="-h -a -s32767,10" ; fi
+
+$SCRIPT/sfswrapper
+
+if [ "$TERM" = "" -o "$TERM" = "unknown" -o "$TERM" = "dumb" ] ; then	#KF7FLY
+	export TERM=vt100
+fi	#KF7FLY
+
+if [ "$PCI_FIX" = "YES" ] ; then
+  "$BIN"/imike_PCI "$IMIKEFLAG" $IMIKEFLAG2 $NODE_IP >/dev/null 2>&1 &
+else
+  "$BIN"/imike "$IMIKEFLAG" $IMIKEFLAG2 $NODE_IP >/dev/null 2>&1 &
+fi
+
+exit 0

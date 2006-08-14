@@ -1,0 +1,15 @@
+./audio
+./backup
+./bin
+./noupdate-*
+./scripts
+hosts
+echo_hosts
+./tbd/tbd
+./tbd/tbd.077
+./tbd/tbd-0.77a-new
+./tbd/tbdcnv
+./tbd/tbdcmd
+./tbd/data/news.tbd
+./tbd/data/extra.tbd
+./tbd/data/aan.tbd

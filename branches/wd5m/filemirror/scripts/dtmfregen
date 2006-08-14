@@ -1,0 +1,27 @@
+#!/bin/bash
+
+# Plays DTMF digits with check for COS, key, .25 second delay, unkey
+
+if [ "$DTMF_REGENERATION" != "YES" ] ; then exit 1; fi
+
+# Check for user defined commands
+if [ -f "$CUSTOM"/custom_regen ]; then
+  if ! "$CUSTOM"/custom_regen $1 $2 ; then exit 0; fi
+fi
+
+if [ "$#" = "0" ] ; then exit 1; fi
+
+killall ispeaker &>/dev/null
+killall sfswrapper &>/dev/null
+
+$BIN/coscheck
+$BIN/key
+usleep ${TXDELAY:-250000}
+$BIN/dial "$1"
+$BIN/unkey
+
+if [ -f $LOCAL/active ] ; then 
+  $SCRIPT/sfswrapper
+fi
+
+exit 0

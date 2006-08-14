@@ -1,0 +1,71 @@
+#!/bin/bash
+. /home/irlp/custom/environment
+
+rm "$LOCAL"/echo_conference
+
+CALLSIGN=`grep "ConferenceCall =" /usr/local/etc/tbd.conf | cut -f3 -d " "`
+
+# Determines node type for access control
+# check for conference first
+echo "$CALLSIGN" > "$LOCAL"/echo_check
+eval `awk '/*/ {print "TYPE=conference"}' "$LOCAL"/echo_check`
+# Is this a link?
+if [ "$TYPE" = "" ] ; then 
+  eval `awk '/-L/ {print "TYPE=link"}' "$LOCAL"/echo_check`
+fi
+# Is this a repeater?
+if [ "$TYPE" = "" ] ; then  
+  eval `awk '/-R/ {print "TYPE=repeater"}' "$LOCAL"/echo_check`
+fi
+
+# Must be a Node number or Callsign
+if [ "$TYPE" = "" ] ; then
+  TYPE=user
+fi
+
+rm -f "$LOCAL"/echo_check
+
+echo System type = "$TYPE"
+# Check if system configured as PC user and shut down tbd if this is the case.
+if [ "$TYPE" = "user" ]; then
+  echo "System is misconfigured.  Must use a -L or -R EchoLink ID."
+  echo "Shuting down EchoIRLP..."
+  "$ECHO_TBD_CMD"/tbdcmd exit
+  echo `date '+%b %d %Y %T %z'` "EchoIRLP: Node misconfigured with PC User ID.  Shutting down..." >> $LOGFILE
+  exit 0
+fi
+
+# If tbd configured as conference, don't want to interact with IRLP node.
+if [ "$TYPE" = "conference" ]; then
+  echo "System is configured as conference.  Disabling EchoIRLP RF link."
+  touch "$LOCAL"/echo_conference
+  echo `date '+%b %d %Y %T %z'` "EchoIRLP: tbd is configured as *CONFERENCE*.  Disabling EchoIRLP RF link." >> $LOGFILE
+  exit 0
+fi
+
+# OK, we're using an appropriate EchoLink ID for an RF gateway.
+# Time for some sanity checks... :-)
+
+if [ "$CALLSIGN" != "$ECHO_MYCALL" ]; then
+  echo "System is misconfigured.  Please check that ECHO_MYCALL is set to the"
+  echo "same callsign as ConferenceCall in tbd.conf"
+  echo `date '+%b %d %Y %T %z'` "EchoIRLP: ECHO_MYCALL does not match callsign in tbd.conf!  Shutting down..." >> $LOGFILE
+  exit 0
+fi
+
+if [ "$CALLSIGN" != `echo $ECHO_NODE_DESC | cut -f1 -d " "` ]; then
+  echo "System is misconfigured.  Please check that ECHO_NODE_DESC starts with the"
+  echo "same callsign as ConferenceCall in tbd.conf"
+  echo `date '+%b %d %Y %T %z'` "EchoIRLP: ECHO_NODE_DESC does not start with callsign in tbd.conf!  Shutting down..." >> $LOGFILE
+  exit 0
+fi
+
+if [ "$CALLSIGN" != `cat "$ECHO_CUSTOM"/userdata.txt | grep "$CALLSIGN"` ]; then
+  echo "System is misconfigured.  Please check that the callsign in userdata.txt is set to the"
+  echo "same callsign as ConferenceCall in tbd.conf"
+  echo `date '+%b %d %Y %T %z'` "EchoIRLP: Callsign in userdata.txt does not match callsign in tbd.conf!  Shutting down..." >> $LOGFILE
+  exit 0
+fi
+
+
+echo Callsign configuration OK!

@@ -1,0 +1,31 @@
+#!/bin/bash
+
+# Prepares audio for tbd playback on the fly
+# This script can take any number of arguments
+
+[ -z "$SCRIPT" ] && SCRIPT=/home/irlp/scripts
+source $SCRIPT/common-functions.sh
+
+if [ "$#" = "0" ] ; then exit 1; fi
+
+#Converts audio to nice congruent audio, without gaps, if there is more
+#than one argument in the script.
+
+if [ -f /usr/bin/sox ] ; then
+  while [ -n "$1" ];do
+    if [ ! -f $1.ul ] ; then 
+      rm -f $RUN/temp.ul
+      /usr/bin/sox $1.wav $RUN/temp.ul
+      cat $RUN/temp.ul >> $RUN/wavefile.ul
+    else
+      cat $1.ul >> $RUN/wavefile.ul
+    fi
+    shift
+  done
+  /usr/bin/sox $RUN/wavefile.ul -s -u -w $ECHO_TBD_DATA/wavefile.wav
+  /usr/local/bin/tbdcnv -i $ECHO_TBD_DATA/wavefile.wav -o $ECHO_TBD_DATA/wavefile
+  rm -f $ECHO_TBD_DATA/wavefile.wav
+  rm -f $RUN/wavefile.ul
+else
+  echo "This script requires Sox to be installed!"
+fi

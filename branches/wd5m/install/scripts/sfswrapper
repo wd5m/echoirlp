@@ -1,0 +1,25 @@
+#!/bin/bash
+
+#Determines if IRLP_SPEAKER is running, and starts it if it isn't
+
+
+
+#keeps ispeaker from dumping core
+ulimit -c 0
+
+FLAGS="-f$ECHO_TBD_HOST"
+
+killall ispeaker >/dev/null 2>&1
+killall ispeaker_PCI >/dev/null 2>&1
+
+FLAGS="$FLAGS -j250,250"
+
+#Run on port tbd sends data to.
+ 
+FLAGS="$FLAGS -p$ECHO_TBD_SEND"
+
+if [ "$PCI_FIX" = "YES" ] ; then
+  ($BIN/ispeaker_PCI $FLAGS || (sleep 2 ; $BIN/unkey; $ECHO_SCRIPT/sfswrapper)) >/dev/null 2>&1 &
+else
+  ($BIN/ispeaker $FLAGS || (sleep 2 ; $BIN/unkey ; $ECHO_SCRIPT/sfswrapper)) >/dev/null 2>&1 &
+fi

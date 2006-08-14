@@ -1,0 +1,69 @@
+# This file is the EchoLinux ENVIRONMENT file. It is designed to set a list of global varaibles
+# which are used by the software.
+#
+# These environment variables could have set in the IRLP EVIRONMENT file. Our concept
+# was to keep the two systems as seperate as possible to allow for easy removal of EchoLinux.
+# Please make sure that you read and understand the installation instrcutions.
+
+# <My Call>
+# This variable contains the callsign of the local EchoIRLP system as known
+# by the EchoLink network
+export ECHO_MYCALL=VK2XYZ-L
+
+# <Say Node Number>
+# This variable determines if the node number is spoken after the standard 
+# Connect to EchoLink message is played.
+export ECHO_SAY_NODE=CALLSIGN
+
+# <Use EchoLink Servers>
+# The following variable determines if you will use the EchoLink Status servers or
+# a hosts file for IP address resolution.  Please make sure to read the installation
+# instructions for complete details on the use of host files and EchoLink servers.  
+export ECHO_SERVERS=NO
+
+# <Seclect EchoLink Server>
+# Set this variable for the EchoLink Status server desired
+# This is not used if you selected ECHO_HOSTS=YES
+# Uncomment the desired server
+#export ECHO_SERVER=oceania.echolink.org
+export ECHO_SERVER=naeast.echolink.org
+#export ECHO_SERVER=nasouth.echolink.org
+#export ECHO_SERVER=server.echolink.org
+#export ECHO_SERVER=backup.echolink.org
+
+
+###########################################################
+#  S T O P 
+# You should not change any of the varibles below this point
+#
+export ECHOLINUX=/home/EchoIRLP
+export ECHO_BIN=$ECHOLINUX/bin
+export ECHO_SCRIPT=$ECHOLINUX/scripts
+export ECHO_AUDIO=$ECHOLINUX/audio
+export ECHO_NODE_DESC="$ECHO_MYCALL EchoIRLP" 
+export ECHO_CUSTOM=$ECHOLINUX/custom
+
+# Set this to YES to use IRLP protocol for known shared conferences.
+export ECHO_SHARED_CONF=NO
+
+# Variables for use with thebridge
+export ECHO_TBD=/home/EchoIRLP/tbd
+export ECHO_TBD_DATA=$ECHO_TBD/data
+export ECHO_TBD_ENABLE=YES
+
+# Host thebridge gateway is running on (normally 127.0.0.1)
+export ECHO_TBD_HOST=127.0.0.1
+
+# Port thebridge listens on for IRLP connection
+export ECHO_TBD_LISTEN=2174
+
+# port thebridge sends voice data to (ispeaker needs to listen on this one)
+export ECHO_TBD_SEND=2074
+
+# Password for local gateway (Don't rely on this, use ipchains/tables as well)
+export ECHO_TBD_PASSWD="password"
+
+# Control commands for thebridge
+export ECHO_TBD_COMMAND="/usr/local/bin/tbdcmd"
+
+export ECHO_ENV=TRUE

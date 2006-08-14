@@ -1,0 +1,106 @@
+#!/bin/bash
+###########################################################
+#                                                         #                  
+#  Released under the GNU Public License                  #                  
+#                                                         #                  
+#  Script :  echo_end                                     #
+#  Author :  Marcus Xenakis WA2DCI                        #
+#  Version:  .15 Beta                                     #
+#  Date   :  3/22/03                                      #
+#  About  :  This script tests to see if the last call    #
+#            was EchoLink or IRLP. Passes to normal IRLP  #
+#            "end" script if not an EchoLink call         #
+#                                                         #
+###########################################################
+
+# Make sure we are user repeater!!!
+if [ `/usr/bin/whoami` != "repeater" ] ; then
+  echo This program must be run as user REPEATER!
+  exit 1
+fi
+
+# Make sure we have sourced the environment file
+if [ "$RUN_ENV" != "TRUE" ] ; then
+  . /home/irlp/custom/environment
+fi
+
+# Make sure we have sourced the EchoLinux environment file
+if [ "$ECHO_ENV" != "TRUE" ] ; then
+  echo "You must add EchoIRLP environment variables to the environment file."
+  echo "Check your installtion instructions."
+  exit 1
+fi
+
+killall imike >/dev/null 2>&1
+killall ispeaker >/dev/null 2>&1
+killall imike_PCI >/dev/null 2>&1
+killall ispeaker_PCI >/dev/null 2>&1
+
+$BIN/key
+
+NODE_CALL="`cat $LOCAL/echo_call`"
+
+#LOGS the disconnect 
+echo `date '+%b %d %Y %T %z'` "Connect timeout from EchoLink `cat $LOCAL/echo_active` $NODE_CALL" >> "$LOGFILE"
+
+if [ -f "$LOCAL"/echoirlp ] ; then
+  # Disconnect from destination node
+  $ECHO_TBD_COMMAND disconnect $NODE_CALL
+  echo "$ECHO_TBD_COMMAND" $NODE_CALL
+  rm -f "$LOCAL"/echoirlp
+else
+# Otherwise we're using a shared conference - update our status
+  "$ECHO_BIN"/echostatus $ECHO_SERVER O
+fi
+
+# Save Node numbers
+NODE_ID=`cat "$LOCAL"/echo_active`
+CONVERTED_STATIONID=`cat "$LOCAL"/active`
+
+#if [ "$ECHO_SAY_NODE" = "NO" ] ; then
+#  "$ECHO_SCRIPT"/echo_wavplay echolinkoff
+#else 
+#  "$ECHO_SCRIPT"/echo_wavplay echolinkoff echo_id
+#fi
+
+# remove status flags
+rm -f "$LOCAL"/echo_active
+rm -f "$LOCAL"/echo_call
+rm -f "$LOCAL"/codec
+rm -f "$LOCAL"/selectcodec
+rm -f "$LOCAL"/udp_port
+rm -f "$LOCAL"/preaccess
+rm -f "$LOCAL"/connectedip
+rm -f "$LOCAL"/calledip
+rm -f "$RUN"/*
+rm -f "$LOCAL"/echo_active
+rm -f "$LOCAL"/active
+rm -f "$LOCAL"/node_id
+rm -f "$LOCAL"/echoirlp
+
+# Reset timeout
+touch "$LOCAL"/timeout
+
+#added for the really fast machines :)
+sleep 1
+
+if [ "$CUSTOM_OFF" = "YES" ] ; then
+  if [ -f "$CUSTOM"/custom_off ] ; then
+    "$CUSTOM"/custom_off $1
+  fi
+fi
+
+# Update IRLP status
+"$SCRIPT"/statupdate &
+
+# Update WA2DCI Status
+eval `echo "$CONVERTED_STATIONID" | awk '//{print "NODE="substr($NODE,4,4)}'`
+PARM=$NODE:$CALLSIGN:0:OFF
+URL="http://xenakis.net/wa2dci/echoirlp/statupdate.php?"
+#lynx -auth=zombo:swazzi -source "$URL$PARM" > /dev/null &
+
+"$SCRIPT"/failure $1 call
+
+"$BIN"/unkey
+
+exit 0

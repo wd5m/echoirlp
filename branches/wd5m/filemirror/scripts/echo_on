@@ -1,0 +1,40 @@
+#!/bin/bash
+###########################################################
+#                                                         #                  
+#  Released under the GNU Public License                  #                  
+#                                                         #                  
+#  Script   :  echo_on                                    #
+#  Author   :  Marcus Xenakis WA2DCI                      #
+#  Version  :  .15 Beta                                   #
+#  Date     :  3/20/03                                    #
+#  About    :  A script that is forked by a call process  #
+#  Modified :  4/8/03 changed wavgen of stationid.wav     #
+#                                                         #
+###########################################################
+
+[ -z "$ECHO_SCRIPT" ] && ECHO_SCRIPT=/home/EchoIRLP/scripts
+   source $ECHO_SCRIPT/echo_common
+
+# Exits if node is not enabled
+if [ ! -f "$LOCAL"/enable -o ! -f "$LOCAL"/echo_enable ] ; then 
+  log "The node is not enabled"
+  exit 0
+fi
+
+$SCRIPT/statupdate
+
+STATIONID=`cat "$LOCAL"/active`
+# Set IRLP wav file time-out and connected message
+# It is copied each time because IRLP resets it. 
+cp "$ECHO_AUDIO"/echolink.ul /tmp/echolink.ul
+cat /tmp/temp.ul >> /tmp/echolink.ul
+sox /tmp/echolink.ul "$AUDIO"/"$STATIONID"off.wav
+
+# Set status page with EchoLink info
+$ECHO_SCRIPT/echo_status 
+
+# Log connection
+#echo "Node Connected to EchoLink node $1 $2"
+log "Node Connected to EchoLink $1 $2"
+
+exit 0

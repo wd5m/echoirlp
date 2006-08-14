@@ -1,0 +1,479 @@
+EchoLink Connect to Conference Script - Marcus, WA2DCI
+
+This README file contains:
+
+1. Overview
+2. Installation Description
+3. Detailed Installation Steps
+4. Thing to know about EchoIRLP
+	
+Please read the entire file before starting the installation.
+
+---------------------------------------------------------------------
+OVERVIEW
+
+EchoIRLP's "Connect To Conference" project allows an IRLP node owner
+to use the existing radio, hardware and software to connect to 
+specially configured EchoLink conference servers running "thebridge" 
+software. These are a set of scripts that enhance the script originally 
+written by VK3JED.
+
+As of April, 2003 there are less than 20 EchoLink conference servers 
+that are configured to allow this type of access.
+
+The EchoIRLP group has another project in the pipeline. We are following 
+the efforts of Jeff WD4NMQ in the EchoLinux project.  Most of the 
+scripting work done on the "Connect to Conference" Project is laying 
+the foundation for integration of a functional EchoLinux client running 
+in conjunction with IRLP on the same platform.
+
+You may wish to wait for the SysOp version of the EchoLinux project. 
+If you install these scripts the configuration and setup will be the 
+same for EchoLinux on an IRLP node.  Currently there is no projected 
+release date for EchoLinux on an IRLP node.
+
+What this project DOES and DOES NOT do.
+
+The "Connect To Conference" project:
+
+1) DOES NOT allow you to cross connect the IRLP and EchoLink   
+Networks together.
+
+2) DOES NOT allow EchoLink clients to connect to your IRLP Node. 
+
+3) DOES NOT provide your IRLP node access to all conference
+servers.
+
+4) DOES NOT allow your IRLP node to connect to EchoLink clients.
+
+5) DOES allow you to connect to specially configured EchoLink
+conference servers running "theBridge" conference server
+ software by Skip WB6YMH
+
+6) DOES report your status as 'Busy' within the IRLP status
+servers while you are connected to the conference server. 
+Without using "Phantom Reflectors" which is discouraged by the 
+IRLP. 
+
+7) DOES (optionally) use the directory server management software 
+written by Jeff WD4NMQ to obtain current IP addresses and update 
+your status within in the EchoLink network.
+
+
+I would like to thank the following people who have contributed 
+to this project:
+
+Tony, VK3JED
+Jeff, WD4NNQ
+Skip, WB6YMH
+John, K1DWU
+Ray,  KA1JJM
+Tony, W6FM
+Ed,   WA6RQD
+Paul, K5GLH 	
+
+We are always looking for volunteers to help with coding, testing, 
+documentation, etc. So if you have a bit of extra time on your hands 
+and want to help out, please let us know. This is an "Open Source" 
+project so source code for the "C" programs are included. You should
+not need to compile any of the programs since the binaries are included 
+in the package.
+
+---------------------------------------------------------------------
+WHAT'S NEW IN THIS RELEASE
+
+Release .16 
+
+Added awk code to correct a problem with the echo_status script in
+Red hat version 6.2.  Contributed by WA6RQD
+
+Previous release .15
+
+* Modified the installation script for updates
+
+* New wav files that are recorded by John Boteler WD0OXQ
+  You may recognize the voice as the one on WWV.
+  John also recorded the new wav files for the IRLP.
+  
+* Wav files are concatenated and node numbers are spoken
+  without the long pauses between numbers.  This routine
+  was submitted by Tony, VK3JED and now the IRLP is doing 
+  the same thing.
+  
+* The new scripts report status to the Status Page at 
+  WA2DCI.COM.  It will show which conference you are 
+  connected to.
+  
+* A new environment setting has been added for callsign.
+  The "environment" variable "ECHO_SAY_NODE=" now has a third
+  option "CALLSIGN".  So that you may choose "YES", "NO" or
+  "CALLSIGN".  Remember to reboot your node after environment
+  file changes.
+  
+* Removed the "echo_off" script and streamlined code to use 
+  more forking.
+ 
+* The EchoLink hosts file is retrieved/refreshed upon echo node
+  enable. In the past it would have waited up to 5 minutes for the
+  cron job to execute.
+  
+* Added the ability to call echo_status interactively to refresh
+  the EchoLink hosts file. When called interactively use the parameter
+  "update" as in "echo_status update".  It will play a beep to indicate
+  completion.  It will beep low-to-high for completed of high-to-low for
+  a failure.
+  
+* The messages file (log) now has node number & callsing on disconnect 
+
+* Added code for the IRLP "custom_off" to insure file cleanup upon a
+  node time-out.
+
+* Updated echostatus for longer EchoLink node numbers.
+  
+---------------------------------------------------------------------
+INSTALLATION DESCRIPTION
+
+There is an installation script that will prompt you for setup information. 
+The installation script will create a directory called "echoLinux" within 
+"/home/irlp/custom". Your IRLP environment file will be changed; new 
+variables will be added.  These new variables all begin with the word "ECHO" 
+in an attempt to avoid a conflict with any IRLP variables.  The EchoLinux 
+scripts are located in their own directory but we kept the same naming 
+convention.
+
+The installation script will create a backup of your environment file in 
+"/home/irlp/custom/echoLinux/backup".  The "rc.irlp", "custom_decode" and 
+"custom.crons" (if it exists) are also backed up.  These files are not 
+changed by the installation script, but will be edited.  This will allow 
+you to recover the original settings should you make an error or you wish 
+to remove the "echo_call_conf" script.  The installation also created a
+backup of the environment file called environment.1 in "/home/irlp/custom".
+
+The default installation will setup the script to use a hosts file for the 
+EchoLink conference servers.  This will allow you to test the script 
+immediately after installation and configuration.  We recommend that you 
+use the EchoLink servers since IP addresses may change. To do so you must 
+be a registered EchoLink user. You must download and register their Windows 
+software. 
+
+The "echo_call_conf" script will work concurrently in the same network as 
+a Windows EchoLink client. This is beacuse the script uses the same ports as
+the IRLP (2074-2075). You do not need to open any of the EchoLink ports 
+5199-5200 on your router or firewall. 
+
+When the full EchoLinux node is released in the future you will need to 
+open the EchoLink ports and forward them to your IRLP node along with the 
+IRLP ports.  If you only have a single IP address this means that you
+will no longer be able to use the Windows EchoLink client behind the same
+router or firewall.
+
+If you have been running an "Alpha" version of "echo_call_conf" as part of 
+the test program do not run this installation script, your environment file 
+should already be setup.
+
+---------------------------------------------------------------------
+DETAILED INSTALLATION STEPS
+
+The following step assume that you are logged on as user "root"
+
+1) Download and copy "echo_call_conf.tar.gz" to the "/home/irlp" directory.
+
+2) Run "gunzip echo_call_conf.tar.gz"
+
+3) Run "tar -xvf echo_call_conf.tar"
+
+4) CD into "/home/irlp/custom/echoLinux
+
+5) Run "./INSTALL.call_conf", and answer all the prompts.  The installation
+   script will detect if this is an update. It should prompt you to that
+   effect.
+
+6) If this is a new installation you need to configure your custom_decode file. 
+   If this is an "update" you should very that the remaining steps have beed
+   previously configured.
+
+6.a) You must trap your disconnect code in the custom_decode file to call 
+   the echo_end script.  The echo_end script will detect if the current 
+   call is an EchoLink or IRLP call.  If it is an IRLP call it simply passes 
+   control to the normal IRLP "end" script. If it is an EchoLink call the 
+   echo_end script will take control of closing the connection.
+
+If you use a code other than 73 to disconnect make sure to trap it as well. 
+In your custom_code add a line to trap the 73 disconnect code as follows.
+
+if [ "$1" = "73" ] ; then "$ECHO_SCRIPT"/echo_end ; exit 1 ; fi
+
+6.b) You must add a code for each EchoLink conference server.  This should 
+not be a problem since only a few IRLP compatible servers exist at this 
+time. You may also use an alternate method to be able to connect using 
+EchoLink node numbers via the custom_decode file.  To code the custom_decode 
+file you need to know the node number for the EchoLink conference and use 
+it as the first parameter of the call.  Here is an example for some of the
+conference servers in the echo_conf file included in this package. 
+
+** PLEASE ** examine the contents of the echo_conf file for the complete list. 
+The echo_conf is updated frequently and may be downloads from the same 
+files area where this package was found.
+
+if [ "$1" = "S1" ] ; then "$ECHO_SCRIPT"/echo_call_conf  63421 ; exit 1 ; fi
+if [ "$1" = "S2" ] ; then "$ECHO_SCRIPT"/echo_call_conf  7059 ; exit 1 ; fi
+if [ "$1" = "S3" ] ; then "$ECHO_SCRIPT"/echo_call_conf  43220 ; exit 1 ; fi
+if [ "$1" = "S4" ] ; then "$ECHO_SCRIPT"/echo_call_conf  48640 ; exit 1 ; fi
+if [ "$1" = "S5" ] ; then "$ECHO_SCRIPT"/echo_call_conf  70226 ; exit 1 ; fi
+if [ "$1" = "S6" ] ; then "$ECHO_SCRIPT"/echo_call_conf  89045 ; exit 1 ; fi
+if [ "$1" = "S7" ] ; then "$ECHO_SCRIPT"/echo_call_conf  38467 ; exit 1 ; fi
+if [ "$1" = "S8" ] ; then "$ECHO_SCRIPT"/echo_call_conf  70715 ; exit 1 ; fi
+if [ "$1" = "S9" ] ; then "$ECHO_SCRIPT"/echo_call_conf  38676 ; exit 1 ; fi
+if [ "$1" = "S10" ] ; then "$ECHO_SCRIPT"/echo_call_conf  4914 ; exit 1 ; fi
+if [ "$1" = "S11" ] ; then "$ECHO_SCRIPT"/echo_call_conf  6154 ; exit 1 ; fi
+if [ "$1" = "S12" ] ; then "$ECHO_SCRIPT"/echo_call_conf  7203 ; exit 1 ; fi
+
+These entries will call conferences 
+
+*LI_NY* as S1, 
+*TACOMA* as S2, 
+*TECHTALK* as S3,
+*VK3JED* as S4,
+*UTAHGATE as S5,
+*SINBAD* as S6,
+*OK-CITY* as S7, 
+*APRS* as S8,  
+*K5JD* as S9,	
+*SEATAC* as S10,
+*WASH_DC* as S11,
+*WX_TALK* as S12,
+
+Alternate method of calling the script:
+This method uses the EchoLink node number as the parameter. This will be the 
+preferred method when a full EchoIRLP client is released. Just prefix a star (*)
+in front of the node number.  This avoids any possible confusion with IRLP node
+numbers.  Place this code at the end of your custom_decode file just prior to
+the exit statement.  You may substitute P,A,B or C in place os "S" in the line 
+"if [ $STAR = "S" ] ; then"
+
+eval `echo $1 | awk '{ 
+     print "STAR="substr($DTMFCODE,1,1);
+     print "NODE="substr($DTMFCODE,2)}'`
+
+if [ $STAR = "S" ] ; then 
+   "$ECHO_SCRIPT"/echo_call_conf $NODE
+   exit 1
+fi   
+
+6.c) You must add entries to enable and disable the ability to call the EchoLink 
+network.  Add entries to your custom_deocde using whatever code you wish.  
+Here are examples where 12012 disables EchoIRLP and 12013 enables it.
+
+if [ "$1" = "12012" ] ; then "$ECHO_SCRIPT"/echo_disable ; exit 1 ; fi
+if [ "$1" = "12013" ] ; then "$ECHO_SCRIPT"/echo_enable ; exit 1 ; fi
+
+7) You need to have a "custom_off" script. The instructions in the custom_off
+file will reset the EchoIRLP status files in $LOCAL, this is important for 
+node timeouts since the normal echo_end script will not be called. 
+
+7.a) If you do not have a custom_off script one will be created for you by the
+installation script. If you have a custom_off script you must copy the contents
+of custom_off found in /home/irlp/custom/echoLinux/ to your custom_off. Copy all
+lines  except the fisrt and last lines "# !/bin/bash" and "exit 0".
+
+7.b) You must edit your environment file to enable "custom_off". Make sure to
+find "export CUSTOM_OFF" and make sure it is set to "export CUSTOM_OFF=YES" and
+that it is not commented, delete the # if it is the first character of the
+line.
+
+8) If you want EchoIRLP to automatically be enabled upon node boot up then 
+place the following two lines in your "rc.irlp" file at the end of the file but 
+just before the "exit 0" statement; 
+"$ECHO_SCRIPT"/echo_enable
+chown repeater.repeater "$LOCAL"/echo_enable
+
+9) At this point you have configured the IRLP node to connect to the 
+EchoLink conference servers without using the EchoLink directory servers.  
+It is recommended that you reboot the IRLP node and perform connection 
+tests before preceding with any further installation.  
+
+Just as you may find an IRLP reflector quiet, the EchoLink conference  
+may be inactive. These tests should be performed with another EchoLink 
+Windows client that is known to be working.  You may install the standard 
+EchoLink client on your PC to test with yourself.  If this is the first 
+time you have installed EchoLink on your PC may have to wait for up to 
+48 hours for your callsign to be verified.
+
+9.a) Reboot the IRLP node.
+
+9.b) Enable the EchoLink feature using the code that you associated with 
+the "echo_enable" script.  This is not required if you placed "echo_enable" 
+in your "rc.irlp" file.  You should hear "EchoLink node enabled" message 
+from the node.
+
+9.c) Test the disable code that you associated with the "echo_disable".  
+You should hear "EchoLink node disabled" from the node.
+
+9.d) Enable "EchoLink" then use one of the codes that you associated with 
+a conference server to connect.  You should hear "Connecting to the 
+EchoLink Network" followed by the EchoLink Node number.  
+You may suppress the speaking of the node number by changing the 
+"ECHO_SAY_NODE" variable in the environment file.  This environment 
+variable may also beset to "CALLSIGN"
+
+9.e) Test the connection with another EchoLink station or use your own 
+PC to connect to the same conference to test.  You should hear each 
+other and your node information should show up in the EchoLink 
+information panel.
+
+10) At this point you should have successfully tested the IRLP node 
+with at least one EchoLink conference server.  Do not proceed with 
+the remaining steps until you have a working node.  There are no audio 
+adjustments required; the node is using the same hardware and aumix 
+settings used for IRLP. EchoLink stations do not have the same uniform 
+audio setup that the IRLP has.  If the audio is not satisfactory you 
+must accept it.  Remember that you will be hearing a wide variety of 
+audio sources including PC's with really cheap microphones. 
+
+11)  No further configuration is required unless you would like to 
+use the EchoLink directory servers.  The benefits are that you will 
+be able to retrieve the IP address of the conference server if it 
+has changed, and your station will show up on the node list as busy 
+when connected.  The node will not show as "ON" when not connected 
+since we cannot accept incoming calls at this point.  You may wish 
+to wait for the release of EchoLinux before using the EchoLink servers. 
+
+12) Ok so you want to proceed.  The first thing to understand is that 
+your IRLP node is either a Link or Repeater.  You were prompted to 
+enter a "-L" or "-R" during the setup.  If you go through the following 
+steps your EchoIRLP node will NOT be able to connect to the EchoLink 
+servers for up to 48 hours.  This is true even if you have a working 
+EchoLink node on your PC using windows.  The PC has your callsign 
+without the -L or -R suffix.  You will be issued a new EchoLink node 
+number for the -L/R.  In fact under the EchoLink system a single 
+callsign may have up to three node numbers, Link, Repeater and PC. 
+
+13)  You must create an entry in the file "custom.crons" in the 
+"/home/irlp/custom" directory.  This crontab entry will run a job 
+every 5 minutes that checks to see if EchoLink is enabled.  If it 
+is enabled it will obtain the latest host list from the EchoLink  
+directory servers.  If you are currently connected to a conference 
+it will report you as busy and your node will appear on the directory 
+listing.  The file may not exist if you have never used "custom.crons" 
+before. Place the following in your "custom.crons" file using the 
+editor of your choice vi, pico etc.  
+
+*/5 * * * * (/home/irlp/custom/echoLinux/scripts/echo_status > /dev/null  2>&1)
+
+13.b) You may add a custom_decode entry to force an EchoLink hosts file update. 
+   This is similar to using F5 in the Windows PC EchoLink Client.  Use the 
+   paarameter "update" to give you audible feedback. A low-to-high tone means
+   sucessfull and hight-to-low means failed.
+   
+if [ "$1" = "S99" ] ; then "$ECHO_SCRIPT"/echo_status update; exit 1 ; fi
+
+14) Find the line in your environment file that says 
+"export ECHO_SERVERS=NO" and change it to "export ECHO_SERVERS=YES", 
+then save the file.
+
+15)  Reboot your node and you are ready to go.  Remember that the new 
+EchoLink node number may take up to 48 hours to become active.  You 
+can check the results by looking at the contents of a file called 
+"echo_hosts" in "/home/irlp/custom/echoLinux".  This is the listing 
+of active EchoLink stations, their node numbers and IP addresses.  
+If you have not been approved yet you will see an error listed in 
+that file that states "Callsign is being validated".
+
+---------------------------------------------------------------------
+THINGS TO KNOW ABOUT EchoIRLP
+
+IRLP STATUS REPORTING
+
+There are a few things to understand about how this project has been 
+implemented.  At first we experimented with going OFFLINE on the IRLP 
+network.  This had many undesirable effects. Call waiting would not 
+work if you are OFFLINE and the connection time-out timer did not 
+work.  We could replicate some of these features but then we would 
+not be taking maximum advantage of the software already installed
+
+Some of the nodes using a variant of this software and it's 
+predecessor where reporting as connected to "Phantom" or non-existent 
+IRLP reflectors. We also tried reported as being connected to the 
+IRLP ECHO reflector but was informed that both of these practices 
+are unacceptable by the IRLP administrators.  We also experimented with 
+creating a "null" or empty active file. This results in a busy signal 
+(like the telephone) when someone calls your node.  This seemed a 
+better approach except that the IRLP status page indicates a connection 
+to the ECHO reflector.   
+
+What we came up with is reporting that the node is connected to itself.  
+Under the normal IRLP system you cannot call your own node.  When you 
+make an EchoLink call the IRLP status page indicates that you are 
+connected to yourself.  The status page at WA2DCI.COM indicates the 
+node as connected to "EchoLink".
+
+The inactivity time-out works. If another IRLP node attempts to call 
+you while you are in an EchoLink conference you will hear the 
+call-waiting message.  The calling station will hear that you are 
+connected to yourself.  The IRLP inactivity timer also reports that you 
+have disconnected from yourself.  We have worked around the timeout
+message by coping the EchoLink Off message to your Station ID Off wave
+file. Some nodes have a custom_decode to play their own wave files.
+If you would like to disable this feature edit the "echo_call_conf"
+script, it is commented. There are other ways to correct some of these
+bugs  but we did not want to modify any IRLP scripts.
+
+This is a "Beta" release and I am sure that there will be bug reports.
+It has only been tested on IRLP nodes running RedHat versions 6.2 
+and 7.3.
+
+ABOUT THE ECHO_CONF FILE
+
+The "echo_conf" file is required for the echo_call_conf script.  
+It identifies the nodes known as IRLP compatible conferences. This 
+file contains four data items that are "tab" separated for each 
+conference. These data items are, conference name, password, node 
+number and IP address.  The last data item, IP address is not used 
+if you have configured the environment to use the EchoLink status 
+servers.  You can check current the IP address for a conference from 
+the Windows EchoLink client by highlighting the conference then right 
+click and use "show info".  The node number and conference name are 
+displayed in the station list.  
+
+When you connect to a conference room using the EchoLink Windows client
+the banner in the info pane will usually indicate of it is running the 
+IRLP compatible software "thebridge".  The conference room owner must 
+enable Speak Freely ports for IRLP use and set the password. These 
+variables are SF_Enable = 1 and RTP_Pass = <password>, where <password>
+is the conference room password for Speak Freely clients.
+
+You must contact the conference room owner to obtain that information. 
+We will post an updated "echo_conf" file in the forum as information 
+becomes available.   
+
+73
+Marcus
+WA2DCI
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+	
+
+
+
+
