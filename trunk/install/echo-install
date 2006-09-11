@@ -1,0 +1,1012 @@
+#!/bin/bash
+########################################################################
+# EchoIRLPinstall 11/04/03 - wa6rqd
+# fixed ECHO_NODE_DESC 11/24/03 - wa6rqd
+# removed exit error at echoIRLP unpack 11/25/03 - wa6rqd
+# changed ECHO_MY_CALL to ECHO_NODE_CALL in environment build 11/26/03 - wa6rqd
+#
+# v1.0: 12-Jan-04 VK2XJG: Complete Redesign for new EchoIRLP file structure. Added multiple new sections
+# v1.1: 17-Feb-04 VK2XJG: Corrected wc support for RH6.2
+# v1.2: 06-Mar-04 VK2XJG: Corrected custom_decode, added check for gcc/make, added fixes for status updates
+# v1.3: 04-Apr-04 VK2XJG: Corrected compiler check, added sanity check for # and * in ECHO_PRE input section
+# v1.4: 21-May-04 VK3JED: Used variables for thebridge and tbdcnv
+# v1.5: 24-Jun-04 KC6HUR: If run more than once, will not modify rc.irlp, environment more than once
+# V1.6: 03-Aug-04 KC6HUR: Fixed a bunch of bugs, some show stoppers
+#
+########################################################################
+#
+# MUST BE RUN AS ROOT
+#
+if [ `/usr/bin/whoami` != "root" ] ; then
+  echo "This program must be run as user ROOT!"
+  exit 1
+fi
+
+#Sets the IP of the download server
+SERVERIP=redhat.irlp.net
+
+#Sets the install directory (/home/irlp required)
+ID=/home/EchoIRLP
+CUSTOM=$ID/custom
+ENVFILE=$CUSTOM/echo_environment
+SRC=/usr/src
+TBD=thebridge-0.77.tgz
+TBDCNV=tbdcnv-0.03.tar
+
+clear
+cat <<-EOT
+	------------------------------------------------------------------------
+	                      EchoIRLP Installation Script
+	------------------------------------------------------------------------
+	This program installs the EchoIRLP software and sets up your EchoIRLP
+	parameters. It requires that you have previously registerd the intended
+	callsign with EchoLink.
+	
+	NOTE: You must have installed the GNU GCC compiler and the rest of the
+	      Linux development subsystem.
+	
+	NOTE: The prefered option is capitalized on (y/n) questions. When an
+	      option shows a default value, pressing the enter key will
+	      automatically use the default value. Case sensitive items will be
+	      shifted to the correct tense by the install script.
+	------------------------------------------------------------------------
+	
+EOT
+echo -n "Press ENTER to continue or CTRL-C to cancel : " ; read
+clear
+
+echo -n "Making EchoIRLP directory structure ... "
+if [ ! -d $ID ] ; then
+   mkdir $ID &>/dev/null
+fi
+if [ ! -d $ID/custom ] ; then
+   mkdir $ID/custom &>/dev/null
+fi
+if [ ! -d $ID/bin ] ; then
+   mkdir $ID/bin &>/dev/null
+fi
+if [ ! -d $ID/audio ] ; then
+   mkdir $ID/audio &>/dev/null
+fi
+if [ ! -d $ID/scripts ] ; then
+   mkdir $ID/scripts &>/dev/null
+fi
+if [ ! -d $ID/tbd ] ; then
+   mkdir $ID/tbd &>/dev/null
+fi
+echo "[ DONE ]"
+
+cd $ID
+
+echo
+echo "Downloading EchoIRLP software tarfiles ... "
+
+if [ ! -f $ID/Base_Install.tgz ] ; then
+  /usr/bin/ncftpget -u echoinstall -p ech01rlp $SERVERIP $ID Base_Install.tgz
+else
+  echo "NOTE: File already exists - ${ID}/Base_Install.tgz"
+fi
+if [ ! -f ${SRC}/${TBD} ] ; then
+  /usr/bin/ncftpget -u echoinstall -p ech01rlp $SERVERIP $SRC $TBD
+else
+  echo "NOTE: File already exists - ${SRC}/${TBD}"
+fi
+if [ ! -f $SRC/$TBDCNV ] ; then
+  /usr/bin/ncftpget -u echoinstall -p ech01rlp $SERVERIP $SRC $TBDCNV
+else
+  echo "NOTE: File already exists - ${SRC}/${TBDCNV}"
+fi
+
+# check for tbd tar 
+echo
+echo "Note TBD (TheBridge) is required for direct EchoLink connectivity."
+echo "Without TBD, you will be limited to connecting to special TBD conferences."
+echo "It is recommended that you select Y here."
+TBD_YN=""
+while  [ ! "$TBD_YN" = "Y" ] && [ ! "$TBD_YN" = "y" ] &&  [ ! "$TBD_YN" = "N" ] && [ ! "$TBD_YN" = "n" ]; do
+  TBD_YN="Y"
+  echo -n "Will you be installing TBD (Y/n) " ; read TBD_YN
+done
+
+if [ "$TBD_YN" = "Y" ] || [ "$TBD_YN" = "y" ] ; then
+  # if yes then make sure tar is present - otherwise halt
+  if [ ! -f $SRC/$TBD ] ; then
+    TBD_OK="N"
+    echo "ERROR: File not found - ${SRC}/${TBD}"
+#    echo -n  "Press ENTER to cancel install : " ; read
+    exit 0
+  else 
+    TBD_OK="Y"
+    # check for tbdcnv zip file
+    if [ ! -f ${SRC}/${TBDCNV} ] ; then
+      echo "ERROR: File not found - ${SRC}/${TBDCNV}"
+      TBDCNV_OK="N"
+#      echo -n  "Press ENTER to cancel install : " ; read
+      exit 0
+    else
+      TBDCNV_OK="Y"
+    fi
+  fi
+fi
+
+
+# check for echoirlp tar
+if [ ! -f ${ID}/Base_Install.tgz ] ; then
+  echo "ERROR: File not found - ${ID}/Base_Install.tgz"
+  ECHO_OK="N"
+#  echo -n  "Press ENTER to cancel install : " ; read
+  exit 0
+else
+  ECHO_OK="Y"
+fi
+
+# Check for GCC and MAKE
+R=""
+if [ -f /etc/redhat-release ]; then
+  R=`cat /etc/redhat-release | cut -d' ' -f5`
+fi
+
+if [ "$R" = "6.2" ] ; then
+  COMPILER=egcs
+else
+  COMPILER=gcc
+fi
+
+if ! (rpm -q $COMPILER &>/dev/null) ; then
+  echo "ERROR: Missing - ${COMPILER}"
+  if (rpm -q apt &>/dev/null) ; then
+    echo "But you have APT installed, so we can fix that now for you..."
+    sleep 5
+    apt-get update ; apt-get install $COMPILER -y
+  else
+    SUGGEST=YES
+  fi
+fi
+if ! (rpm -q make &>/dev/null) ; then
+  echo "ERROR: Missing - make"
+  if (rpm -q apt &>/dev/null) ; then
+    echo "But you have APT installed, so we can fix that now for you..."
+    apt-get update ; apt-get install make -y
+  else
+    SUGGEST=YES
+  fi
+fi
+if [ "$SUGGEST" = "YES" ] ; then
+   cat <<-EOT
+	It also seems that you are not using APT. We STRONGLY recommend that you
+	install apt in order to keep your linux OS current, and make package
+	installation like this easier.
+	
+	Please install the GCC rpm package or install apt-get (instructions on
+	http://redhat.irlp.net) echo "and then re-run this script.
+EOT
+  exit 0
+fi
+
+#######################################
+#        begin info input             #
+#######################################
+echo
+YOUR_CALL=""
+while [ ${#YOUR_CALL} -lt 4 ] || [ ${#YOUR_CALL} -gt 8 ]; do
+  echo -n "Enter the node owner's callsign (Without -L/-R suffix - e.g. w0abc): " ; read YOUR_CALL
+  if [ ${#YOUR_CALL} -lt 4 ] || [ ${#YOUR_CALL} -gt 8 ] ; then
+    echo "ERROR: Your callsign must be between 4 and 8 characters"
+#    echo -n "Press Enter to start entering info again." ; read
+#    clear
+  fi
+done
+
+echo ""
+ECHO_CALL=""
+while [ ${#ECHO_CALL} -lt 4 ] || [ ${#ECHO_CALL} -gt 8 ]; do
+  echo -n "Enter the Repeater (-R) or Link (-L) callsign, with -L or -R suffix (e.g. w0abc-r): " ; read ECHO_CALL
+  if [ ${#ECHO_CALL} -lt 4 ] || [ ${#ECHO_CALL} -gt 8 ] ; then
+    echo "ERROR: The callsign must be between 4 and 8 characters"
+#    echo -n "Press Enter to start entering info again." ; read
+#    clear
+  fi
+done
+
+echo ""
+ECHO_NAME=""
+while [ ${#ECHO_NAME} -lt 2 ] || [ ${#ECHO_NAME} -gt 32 ]; do
+  echo -n "Enter the EchoLink node description. (e.g. 449.300 131.8 ): " ; read ECHO_NAME
+  if [ ${#ECHO_NAME} -lt 2 ] || [ ${#ECHO_NAME} -gt 32 ] ; then
+    echo "ERROR: The node name must be between 2 and 32 characters"
+#    echo -n "Press Enter to start entering info again." ; read
+#    clear
+  fi
+done
+
+echo ""
+ECHO_LOCATION=""
+while [ ${#ECHO_LOCATION} -lt 2 ] || [ ${#ECHO_LOCATION} -gt 25 ]; do
+  echo -n "Enter the EchoLink node location. This is used on the status page.: " ; read ECHO_LOCATION
+  if [ ${#ECHO_LOCATION} -lt 2 ] || [ ${#ECHO_LOCATION} -gt 25 ] ; then
+    echo "ERROR: The location must be between 2 and 25 characters"
+#    echo -n "Press Enter to start entering info again." ; read
+#    clear
+  fi
+done
+echo ""
+ECHO_PASS=""
+while [ ${#ECHO_PASS} -lt 2 ] || [ ${#ECHO_PASS} -gt 32 ]; do
+  echo -n "Enter the EchoLink password (e.g. whoknows): " ; read ECHO_PASS
+  if [ ${#ECHO_PASS} -lt 2 ] || [ ${#ECHO_PASS} -gt 32 ] ; then
+    echo "ERROR: The password must be between 2 and 32 characters"
+#    echo -n "Press Enter to start entering info again." ; read
+#    clear
+ fi
+done
+
+echo ""
+ECHO_PRE=""
+while [ ${#ECHO_PRE} -lt 1 ] || [ ${#ECHO_PRE} -gt 8 ]; do
+ echo -n "Enter the EchoLink DTMF prefix - Any DTMF starting with this will be treated as an EchoLink Call "
+ echo -n "(e.g. S or P or P123): " ; read ECHO_PRE
+ 
+ CHECK=`echo "$ECHO_PRE" | awk '{ if ( $0 ~/\*/ || $0 ~/\#/ ) print "BAD" }'`
+
+ if [ ${#ECHO_PRE} -lt 1 ] || [ ${#ECHO_PRE} -gt 8 ] ; then
+   echo "ERROR: The prefix must be between 1 and 8 characters"
+#   echo -n "Press Enter to start entering info again." ; read
+#   clear
+ fi
+ 
+ if [ "$CHECK" = "BAD" ] ; then
+   echo "Error : You cannot use the symbols '*' or '#'. You must use an 'S' or 'P' instead."
+#   echo -n "Press Enter to start entering info again." ; read
+   ECHO_PRE="" 
+#   clear
+ fi
+
+done
+
+echo ""
+ECHO_LR=""
+while [ ! "$ECHO_LR" = "Y" ] && [ ! "$ECHO_LR" = "y" ] &&  [ ! "$ECHO_LR" = "N" ] && [ ! "$ECHO_LR" = "n" ]; do
+ echo -n "Do you want to REJECT calls from USER stations? (i.e. Headsets.... Not -L/-R) (y/n): " ; read ECHO_LR
+done
+
+echo ""
+ECHO_SN_YN=""
+ while  [ ! "$ECHO_SN_YN" = "Y" ] && [ ! "$ECHO_SN_YN" = "y" ] &&  [ ! "$ECHO_SN_YN" = "N" ] && [ ! "$ECHO_SN_YN" = "n" ]; do
+ echo -n "Do you want the system to anounce the callsign of the remote node? (y/n): " ; read ECHO_SN_YN
+done
+
+echo ""
+ECHO_SERVERS_YN=""
+ while  [ ! "$ECHO_SERVERS_YN" = "Y" ] && [ ! "$ECHO_SERVERS_YN" = "y" ] &&  [ ! "$ECHO_SERVERS_YN" = "N" ] && [ ! "$ECHO_SERVERS_YN" = "n" ]; do
+ echo -n "Do you want the system to use the EchoLink name servers (No is recommended if using TBD) (y/N): " ; read ECHO_SERVERS_YN
+done
+
+echo ""
+ECHO_SC_YN=""
+while  [ ! "$ECHO_SC_YN" = "Y" ] && [ ! "$ECHO_SC_YN" = "y" ] &&  [ ! "$ECHO_SC_YN" = "N" ] && [ ! "$ECHO_SC_YN" = "n" ]; do
+   echo -n "Do you want the system to use IRLP protocol to shared conferences (No is recommended if using TBD) (y/N): " ; read ECHO_SC_YN
+done
+
+echo ""
+TBD_IP="0.0.0.0"
+if [ "$TBD_YN" = "y" ] || [ "$TBD_YN" = "Y" ] ; then
+  TBD_IP="127.0.0.1"
+  EIP=""
+  echo -n "Enter TBD IP (default is 127.0.0.1) " ; read EIP
+  if ! [ "$EIP" = "" ] ; then
+    TBD_IP=$EIP
+  fi
+  if ! [ "$TBD_IP" = "127.0.0.1" ] ; then
+    echo "The install script is not currently set up to handle remote TBD configs"
+#    echo -n "Press Enter to exit" ; read
+    exit 1
+  fi
+
+  echo ""
+  TBD_HOME="/home/EchoIRLP/tbd"
+  echo -n "Where will tbd be installed (default /home/EchoIRLP/tbd): " ; read TBD_HM
+  if [ "$TBD_HM" != "" ] ; then
+    TBD_HOME=$TBD_HM
+  fi
+
+  echo "" 
+  TBD_DATA="/home/EchoIRLP/tbd/data"
+  echo -n "Where will tbd data be kept (default /home/EchoIRLP/tbd/data): " ; read TBD_DA
+  if ! [ "$TBD_DA" = "" ] ; then
+    TBD_DATA=$TBD_DA
+  fi
+
+  echo ""
+  TBD_PASS="password"
+    echo -n "Enter the TBD RTP password (default = password): " ; read TBD_PA
+    if ! [ "$TBD_PA" = "" ] ; then
+      TBD_PASS=$TBD_PA
+    fi
+
+  echo ""
+  TBD_ADMIN_PASS="password"
+    echo -n "Enter the TBD admin password (default = password): " ; read TBD_ADMIN_PA
+    if ! [ "$TBD_ADMIN_PA" = "" ] ; then
+      TBD_ADMIN_PASS=$TBD_ADMIN_PA
+    fi
+
+  echo ""
+  TBD_SYSOP_PASS="password"
+    echo -n "Enter the TBD sysop password (default = password): " ; read TBD_SYSOP_PA
+    if ! [ "$TBD_SYSOP_PA" = "" ] ; then
+      TBD_SYSOP_PASS=$TBD_SYSOP_PA
+    fi
+
+  echo ""
+  TBD_EMAIL=""
+  while [ ${#TBD_EMAIL} -lt 8 ] || [ ${#TBD_EMAIL} -gt 48 ]; do
+    echo -n "Enter an email address that EchoLink can contact you: " ; read TBD_EMAIL
+    if [ ${#TBD_EMAIL} -lt 8 ] || [ ${#TBD_EMAIL} -gt 48 ] ; then
+      echo "ERROR: The email address must be between 8 and 48 characters"
+#      echo -n "Press Enter to start entering info again." ; read
+#      clear
+    fi
+  done
+
+  echo ""
+  ECHO_IDLE_YN=""
+  while [ ! "$ECHO_IDLE_YN" = "Y" ] && [ ! "$ECHO_IDLE_YN" = "y" ] &&  [ ! "$ECHO_IDLE_YN" = "N" ] && [ ! "$ECHO_IDLE_YN" = "n" ]; do
+    echo -n "Do you want to use the echo idle feature (Connection to EchoLink Conference when node is Idle) (y/n): " ; 
+    read ECHO_IDLE_YN  
+  done
+  if [ "$ECHO_IDLE_YN" = "y" ] || [ "$ECHO_IDLE_YN" = "Y" ] ; then
+    ECHO_IDLE_CONF=""
+    while [ ${#ECHO_IDLE_CONF} -lt 2 ] || [ ${#ECHO_IDLE_CONF} -gt 32 ]; do
+      echo -n "Enter the EchoLink idling conference (e.g. *W1ABC*): " ; read ECHO_IDLE_CONF
+      if [ ${#ECHO_IDLE_CONF} -lt 2 ] || [ ${#ECHO_IDLE_CONF} -gt 32 ] ; then
+        echo "ERROR: The conference name must be between 2 and 32 characters"
+#        echo -n "Press Enter to start entering info again." ; read
+#        clear
+      fi
+    done
+    ECHO_IDLE_CONF=`echo "$ECHO_IDLE_CONF" | tr '{a-z}' '{A-Z}'`
+  fi
+
+  echo ""
+  TBD_MAX_USERS=2
+#  while [ "$TBD_MAX_USERS" -lt "1" ] || [ "$TBD_MAX_USERS" -gt "32" ]; do
+#    echo "Note: when setting max users, be aware of bandwidth needed (17.5kbps each)"
+#    echo -n "Enter the maximum tbd simultanious users (Use 2 here unless you are running a conference): " ; read TBD_MAX_U
+#    if (echo $TBD_MAX_U | egrep '^[0-9]+$' &>/dev/null) ; then
+#      if [ "${TBD_MAX_U}" -gt 0 ] && [ "${TBD_MAX_U}" -lt 33 ] ; then
+#        TBD_MAX_USERS=$TBD_MAX_U
+#      fi
+#    else
+#      echo "ERROR: The tbd maximum users must be between 1 and 32"
+#      echo -n "Press Enter to start entering info again." ; read
+#      clear
+#    fi
+#  done
+else 
+  echo -n "Do you want to use the EchoLink servers for node IP lookups? (y/n): " ; read ECHO_DNS_YN
+fi
+
+echo ""
+# force case for call signs and echolink passwords
+ECHO_TBD_CALL=`echo "$ECHO_CALL" | tr '{A-Z}' '{a-z}'`
+ECHO_NODE_CALL=`echo "$ECHO_CALL" | tr '{a-z}' '{A-Z}'`
+ECHO_PASSWORD=`echo "$ECHO_PASS" | tr '{a-z}' '{A-Z}'`
+
+#######################################
+#          end info input             #
+#######################################
+
+INSTALL_YN=""
+while  [ ! "$INSTALL_YN" = "Y" ] && [ ! "$INSTALL_YN" = "y" ] &&  [ ! "$INSTALL_YN" = "N" ] && [ ! "$INSTALL_YN" = "n" ]; do
+  echo -n "Are you ready to install EchoIRLP (y/n) " ; read INSTALL_YN
+done
+if [ "$INSTALL_YN" = "N" ] || [ "$INSTALL_YN" = "n" ] ; then
+  exit 1
+fi
+
+
+#######################################
+#         install tbdcnv tarball      #
+#######################################
+clear
+echo "Install Step: 1"
+if [ "$TBD_YN" = "Y" ] || [ "$TBD_YN" = "y" ] ; then
+  if [ "$TBDCNV_OK" = "Y" ] ; then
+    echo "Unpacking the tbdcnv package"
+    cd "$SRC"
+    TBDCNV_FULL_NAME=`ls tbdcnv*`
+    echo "TBDCNV_FULL_NAME="$TBDCNV_FULL_NAME
+    tar -xvf "$TBDCNV_FULL_NAME"
+    TBD_CNV_DIR=`ls -dxX tbdcnv* | cut -d' ' -f1`
+    echo "$TBDCNV_FULL_NAME"
+    echo "$TBD_CNV_DIR"
+    cd "$SRC"/"$TBD_CNV_DIR"
+    ./configure
+    make
+    make install
+    mv /usr/local/bin/tbdcnv $TBD_HOME
+    ln -s $TBD_HOME/tbdcnv /usr/local/bin/tbdcnv
+    cd $ID
+    rm -rf "$SRC"/"$TBD_CNV_DIR"
+#    echo "Finished unpacking the tbdcnv package"
+#    echo -n "press any key to continue" ; read
+  fi
+
+#######################################
+#         install thebridge tarball   #
+#######################################
+
+  if [ "$TBD_OK" = "Y" ] ; then
+    clear
+    echo "Begin thebridge install"
+
+    cd "$SRC"
+    TBD_FULL_NAME=`ls thebridge*`
+    echo "unpacking $TBD_FULL_NAME"
+    tar -zxvf "$SRC"/"$TBD_FULL_NAME"
+
+    TBD_INIT_DIR=`ls -dxX thebridge* | cut  -f1`
+    echo "TBD_INIT_DIR = $TBD_INIT_DIR"
+
+    # do make and configure stuff
+    cd "$TBD_INIT_DIR"
+    ./configure
+    make
+    cd RedHat
+    ./install
+    mv /usr/local/bin/tbdcmd $TBD_HOME
+    mv /usr/local/libexec/tbd $TBD_HOME
+    rm -f /usr/sbin/tbd
+    ln -s $TBD_HOME/tbdcmd /usr/local/bin/tbdcmd
+    ln -s $TBD_HOME/tbd /usr/sbin/tbd
+    if [ ! -d $TBD_DATA ] ; then
+      mkdir "$TBD_DATA"
+    fi
+    cd $ID
+    cp "$SRC"/"$TBD_INIT_DIR"/tbd.conf $ID/custom/tbd.conf.temp
+    rm -f /usr/local/etc/tbd.conf
+    ln -s $ID/custom/tbd.conf /usr/local/etc/tbd.conf
+    rm -rf "$SRC"/"$TBD_INIT_DIR"
+    echo "thebridge (TBD) installation complete"
+    echo "Further customization can be done by editing the tbd.conf file"
+    echo -n "press any key to continue" ; read
+  fi
+fi
+
+#######################################
+#         install echoirlp tarball    #
+#######################################
+echo "Install Step: 2"
+if [ "$ECHO_OK" = "Y" ] ; then
+  clear
+  echo -n "Uncompressing EchoIRLP Install Image... "
+
+  echo -n "ECHOIRLP BASE INSTALL : "
+  if [ -f $ID/Base_Install.tgz ] ; then
+    tar -zxf $ID/Base_Install.tgz
+  else
+    echo
+    echo "ERROR: File Base_Install.tgz is MISSING... EXITING"
+    exit 1
+  fi
+
+  echo "[ DONE ]"
+
+  echo -n "Cleaning up install files ... "
+  rm -f $ID/*.tgz &>/dev/null
+  echo "[ DONE ]"
+ 
+  # This runs an rsync to install/update the files on the node to what is
+  # currently on the server, to make sure we are not too far behind in
+  # updates. Some installs from the CD will be so old they will not even
+  # have the right code to update from a viable server, and will require
+  # rebuilding from the server.
+
+  echo "Installing/updating EchoIRLP files ... "
+  /home/irlp/bin/rsync -Wazv $SERVERIP::echoirlp $ID
+  echo "[ DONE ]"
+  sleep 5
+fi
+
+##########################################
+#         generate tbd.conf              #
+##########################################
+echo "Install Step: 3"
+if [ "$TBD_YN" = "Y" ] || [ "$TBD_YN" = "y" ] ; then
+  clear
+  echo "Creating $CUSTOM/tbd.conf : "
+  cp -f "$CUSTOM"/tbd.conf.temp "$CUSTOM"/tbd.conf
+
+  sed "s/ConferenceCall = W1AW/ConferenceCall = $ECHO_NODE_CALL/" "$CUSTOM"/tbd.conf > "$CUSTOM"/tbd.temp
+  mv -f "$CUSTOM"/tbd.temp "$CUSTOM"/tbd.conf
+echo 1
+  sed "s/ConferencePass = CW/ConferencePass = $ECHO_PASSWORD/" "$CUSTOM"/tbd.conf > "$CUSTOM"/tbd.temp
+  mv -f "$CUSTOM"/tbd.temp "$CUSTOM"/tbd.conf
+echo 2
+  sed "s/ConferenceQth = Newington, Ct./ConferenceQth = $ECHO_LOCATION/" "$CUSTOM"/tbd.conf > "$CUSTOM"/tbd.temp
+  mv -f "$CUSTOM"/tbd.temp "$CUSTOM"/tbd.conf
+echo 3
+  sed "s-WorkingDir = /usr/home/tbd-WorkingDir = $TBD_DATA-" "$CUSTOM"/tbd.conf > "$CUSTOM"/tbd.temp
+  mv -f "$CUSTOM"/tbd.temp "$CUSTOM"/tbd.conf
+echo 4
+  sed "s/EmailAdr = w1aw@arrl.net/EmailAdr = $TBD_EMAIL/" "$CUSTOM"/tbd.conf > "$CUSTOM"/tbd.temp
+  mv -f "$CUSTOM"/tbd.temp "$CUSTOM"/tbd.conf
+echo 5
+  sed "s/;AdminPass = secret/;AdminPass = $TBD_ADMIN_PASS/" "$CUSTOM"/tbd.conf > "$CUSTOM"/tbd.temp
+  mv -f "$CUSTOM"/tbd.temp "$CUSTOM"/tbd.conf
+echo 6
+  sed "s/;SysopPass = anothersecret/;SysopPass = $TBD_SYSOP_PASS/" "$CUSTOM"/tbd.conf > "$CUSTOM"/tbd.temp
+  mv -f "$CUSTOM"/tbd.temp "$CUSTOM"/tbd.conf
+echo 7
+  sed "s/;ConferenceID = My Conference server/ConferenceID = $ECHO_TBD_CALL/" "$CUSTOM"/tbd.conf > "$CUSTOM"/tbd.temp
+  mv -f "$CUSTOM"/tbd.temp "$CUSTOM"/tbd.conf
+echo 8
+  sed "s/Banner = Welcome to thebridge conference./Banner = Welcome to $ECHO_NODE_CALL EchoIRLP./" "$CUSTOM"/tbd.conf > "$CUSTOM"/tbd.temp
+  mv -f "$CUSTOM"/tbd.temp "$CUSTOM"/tbd.conf
+echo 9
+  sed "s/Banner = Type \".help\" for a command list./Banner = $ECHO_NAME/" "$CUSTOM"/tbd.conf > "$CUSTOM"/tbd.temp
+  mv -f "$CUSTOM"/tbd.temp "$CUSTOM"/tbd.conf
+echo 10
+  sed "s-Banner = See http://CQiNet.sf.net for more info.-Banner = $ECHO_LOCATION-" "$CUSTOM"/tbd.conf > "$CUSTOM"/tbd.temp
+  mv -f "$CUSTOM"/tbd.temp "$CUSTOM"/tbd.conf
+echo 11
+  sed "s/;DirServerHost = server1.echolink.org/DirServerHost = oceania.echolink.org/" "$CUSTOM"/tbd.conf > "$CUSTOM"/tbd.temp
+  mv -f "$CUSTOM"/tbd.temp "$CUSTOM"/tbd.conf
+echo 12
+  sed "s/;MaxConferenceClients = 8/MaxConferenceClients = $TBD_MAX_USERS/" "$CUSTOM"/tbd.conf > "$CUSTOM"/tbd.temp
+  mv -f "$CUSTOM"/tbd.temp "$CUSTOM"/tbd.conf
+echo 13
+  sed "s/;RTP_Pass = yetanothersecret/RTP_Pass = $TBD_PASS/" "$CUSTOM"/tbd.conf > "$CUSTOM"/tbd.temp
+  mv -f "$CUSTOM"/tbd.temp "$CUSTOM"/tbd.conf
+echo 14
+  sed "s/;EnableDiskCommands = 0/EnableDiskCommands = 1/" "$CUSTOM"/tbd.conf > "$CUSTOM"/tbd.temp
+  mv -f "$CUSTOM"/tbd.temp "$CUSTOM"/tbd.conf
+echo 15
+  sed "s/;RunAsUser = tbd/RunAsUser = repeater/" "$CUSTOM"/tbd.conf > "$CUSTOM"/tbd.temp
+  mv -f "$CUSTOM"/tbd.temp "$CUSTOM"/tbd.conf
+echo 16
+  sed "s/;SB_Enable = 1/SB_Enable = 1/" "$CUSTOM"/tbd.conf > "$CUSTOM"/tbd.temp
+  mv -f "$CUSTOM"/tbd.temp "$CUSTOM"/tbd.conf
+echo 17
+  sed "s/;UserCountEnable = 1/UserCountEnable = 0/" "$CUSTOM"/tbd.conf > "$CUSTOM"/tbd.temp
+  mv -f "$CUSTOM"/tbd.temp "$CUSTOM"/tbd.conf
+echo 18
+  sed "s/;MaxCountEnable = 1/MaxCountEnable = 0/" "$CUSTOM"/tbd.conf > "$CUSTOM"/tbd.temp
+  mv -f "$CUSTOM"/tbd.temp "$CUSTOM"/tbd.conf
+echo 19
+  sed "s/;UserCountInLocation = 1/UserCountInLocation = 0/" "$CUSTOM"/tbd.conf > "$CUSTOM"/tbd.temp
+  mv -f "$CUSTOM"/tbd.temp "$CUSTOM"/tbd.conf
+echo 20
+  sed "s/;MaxPlayBackPause = 5/MaxPlayBackPause = 5/" "$CUSTOM"/tbd.conf > "$CUSTOM"/tbd.temp
+  mv -f "$CUSTOM"/tbd.temp "$CUSTOM"/tbd.conf
+echo 21
+  sed "s/;MinPlayBackPause = 0/MinPlayBackPause = 3/" "$CUSTOM"/tbd.conf > "$CUSTOM"/tbd.temp
+  mv -f "$CUSTOM"/tbd.temp "$CUSTOM"/tbd.conf
+echo 22
+  sed "s/;MaxPlayWithoutPause = 600/MaxPlayWithoutPause = 300/" "$CUSTOM"/tbd.conf > "$CUSTOM"/tbd.temp
+  mv -f "$CUSTOM"/tbd.temp "$CUSTOM"/tbd.conf
+echo 23
+  sed "s/;ShowStationInfo = 0/ShowStationInfo = 1/" "$CUSTOM"/tbd.conf > "$CUSTOM"/tbd.temp
+  mv -f "$CUSTOM"/tbd.temp "$CUSTOM"/tbd.conf
+echo 24
+  sed "s/;MaxPlayWithoutPause = 600/MaxPlayWithoutPause = 300/" "$CUSTOM"/tbd.conf > "$CUSTOM"/tbd.temp
+  mv -f "$CUSTOM"/tbd.temp "$CUSTOM"/tbd.conf
+echo 25
+  sed "s/;SF_Enable = 1/SF_Enable = 1/" "$CUSTOM"/tbd.conf > "$CUSTOM"/tbd.temp
+  mv -f "$CUSTOM"/tbd.temp "$CUSTOM"/tbd.conf
+echo 26
+  sed "s/;SF_Port = 2074/SF_Port = 2174/" "$CUSTOM"/tbd.conf > "$CUSTOM"/tbd.temp
+  mv -f "$CUSTOM"/tbd.temp "$CUSTOM"/tbd.conf
+echo 27
+  sed "s/;SF_ReplyPort = 2074/SF_ReplyPort = 2074/" "$CUSTOM"/tbd.conf > "$CUSTOM"/tbd.temp
+  mv -f "$CUSTOM"/tbd.temp "$CUSTOM"/tbd.conf
+echo 28
+  sed "s/;DefaultAutoLurk = 0/DefaultAutoLurk = 0/" "$CUSTOM"/tbd.conf > "$CUSTOM"/tbd.temp
+  mv -f "$CUSTOM"/tbd.temp "$CUSTOM"/tbd.conf
+echo 29
+  sed "s/;BlabOffTimer = 0/BlabOffTimer = 0/" "$CUSTOM"/tbd.conf > "$CUSTOM"/tbd.temp
+  mv -f "$CUSTOM"/tbd.temp "$CUSTOM"/tbd.conf
+echo 30
+  sed "s/;CmdPort = 5198/CmdPort = 5198/" "$CUSTOM"/tbd.conf > "$CUSTOM"/tbd.temp
+  mv -f "$CUSTOM"/tbd.temp "$CUSTOM"/tbd.conf
+echo 31
+  sed "s-;EventScript = /home/tbd/myscript-EventScript = $ID/scripts/echoirlp\-status-" "$CUSTOM"/tbd.conf > "$CUSTOM"/tbd.temp
+  mv -f "$CUSTOM"/tbd.temp "$CUSTOM"/tbd.conf
+echo 31
+  sed "s/;WriteHostFile = 1/WriteHostFile = 1/" "$CUSTOM"/tbd.conf > "$CUSTOM"/tbd.temp
+  mv -f "$CUSTOM"/tbd.temp "$CUSTOM"/tbd.conf
+echo 32
+  echo "[ DONE ]"
+  rm -f "$CUSTOM"/tbd.conf.temp
+  sleep 5
+fi
+
+#######################################
+#        end tbd.conf build           #
+#######################################
+
+#######################################
+#        begin userdata.txt           #
+#######################################
+echo "Install Step: 4"
+echo -n "Creating $ID/custom/userdata.txt :  "
+cat <<-EOT > "$ID"/custom/userdata.txt
+	${ECHO_NODE_CALL}
+	${ECHO_NAME}
+	${ECHO_LOCATION}
+	${ECHO_PASSWORD}
+EOT
+echo "[ DONE ]"
+
+#######################################
+#        end userdata.txt             #
+#######################################
+
+#######################################
+#        begin build environment adds #
+#######################################
+echo "Install Step: 5"
+echo -n "Creating $ID/custom/echo_environment : "
+
+cat <<-EOT > $ENVFILE
+	########################################################################
+	# This file is the EchoIRLP environment file. It is designed to set a 
+	# list of global varaibles which are used by the software.
+	#
+	# These environment variables could have set in the IRLP EVIRONMENT 
+	# file. Our concept was to keep the two systems as seperate as possible 
+	# to allow for easy removal of EchoLinux. Please make sure that you read
+	# and understand the installation instructions.
+	
+	# <My Call>
+	# This variable contains the callsign of the local EchoIRLP system as
+	# known by the EchoLink network
+	export ECHO_MYCALL=${ECHO_NODE_CALL}
+	
+	# <Say Node Number>
+	# This variable determines if the node number is spoken after the
+	# standard Connect to EchoLink message is played.
+EOT
+
+if [ "$ECHO_SN_YN" = "Y" ] || [ "$ECHO_SN_YN" = "y" ] ; then
+   echo "export ECHO_SAY_NODE=CALLSIGN" >> $ENVFILE
+else
+   echo "export ECHO_SAY_NODE=YES" >> $ENVFILE
+fi
+
+cat <<-EOT >> $ENVFILE
+	
+	# <Use EchoLink Servers>
+	# The following variable determines if you will use the EchoLink Status
+	# servers or a hosts file for IP address resolution.  Please make sure
+	# to read the installation instructions for complete details on the use
+	# of host files and EchoLink servers.
+EOT
+
+if [ "ECHO_SERVERS_YN" = "Y" ] || [ "ECHO_SERVERS_YN" = "y" ] ; then
+   echo "export ECHO_SERVERS=YES" >> $ENVFILE
+else
+   echo "export ECHO_SERVERS=NO" >> $ENVFILE
+fi
+
+cat <<-EOT >> $ENVFILE
+	export ECHO_NODE_DESC="\$ECHO_MYCALL EchoIRLP"
+	export ECHO_LOCATION="$ECHO_LOCATION"
+	export ECHO_NAME="$ECHO_NAME"
+	
+	# <Seclect EchoLink Server>
+	# Set this variable for the EchoLink Status server desired
+	# This is not used if you selected ECHO_HOSTS=YES
+	# Uncomment the desired server
+	#export ECHO_SERVER="oceania.echolink.org"
+	export ECHO_SERVER="naeast.echolink.org"
+	#export ECHO_SERVER="nasouth.echolink.org"
+	#export ECHO_SERVER="server.echolink.org"
+	#export ECHO_SERVER="backup.echolink.org"
+	
+	########################################################################
+	#  S T O P 
+	# You should not change any of the varibles below this point
+	#
+	export ECHOLINUX="/home/EchoIRLP"
+	export ECHOIRLP="/home/EchoIRLP"
+	export ECHO_BIN="\${ECHOLINUX}/bin"
+	export ECHO_SCRIPT="\${ECHOLINUX}/scripts"
+	export ECHO_AUDIO="\${ECHOLINUX}/audio"
+	export ECHO_CUSTOM="\${ECHOLINUX}/custom"
+	#
+	# Set this to YES to use IRLP protocol for known shared conferences.
+EOT
+
+if [ "$ECHO_SC_YN" = "Y" ] || [ "$ECHO_SC_YN" = "y" ] ; then
+   echo "export ECHO_SHARED_CONF=YES" >> $ENVFILE
+else
+   echo "export ECHO_SHARED_CONF=NO" >> $ENVFILE
+fi
+
+if [ "$TBD_YN" = "Y" ] || [ "$TBD_YN" = "y" ] ; then
+   cat <<-EOT >> $ENVFILE
+	# Variables for use with thebridge
+	export ECHO_TBD=$TBD_HOME
+	export ECHO_TBD_DATA=\$ECHO_TBD/data
+	export ECHO_TBD_ENABLE=YES
+	
+	# Host thebridge gateway is running on (normally 127.0.0.1)
+	export ECHO_TBD_HOST=$TBD_IP
+	
+	# Port thebridge listens on for IRLP connection
+	export ECHO_TBD_LISTEN=2174
+	
+	# port thebridge sends voice data to 
+	# (ispeaker needs to listen on this one)
+	export ECHO_TBD_SEND=2074
+	
+	# Password for local gateway 
+	# (Don't rely on this, use ipchains/tables as well)
+	export ECHO_TBD_PASSWD=$TBD_PASS
+	
+	# Control commands for thebridge
+	export ECHO_TBD_COMMAND="/usr/local/bin/tbdcmd"
+EOT
+fi
+cat <<-EOT >> $ENVFILE
+	
+	export ECHO_ENV=TRUE
+EOT
+echo "[ DONE ]"
+
+if ! `grep /home/EchoIRLP/custom/echo_environment /home/irlp/custom/environment` ; then
+  echo -n "Modifying /home/ielp/custom/environmnet to source the EchoIRLP environment ... "
+  cat <<-EOT >> /home/irlp/custom/environment
+
+source /home/EchoIRLP/custom/echo_environment
+EOT
+  echo "[ DONE ]"
+else
+  echo "NOTE: IRLP environment already sources echo_environment."
+fi
+
+#######################################
+#        end build environment adds   #
+#######################################
+
+#######################################
+#       start idle conference setup   #
+#######################################
+echo "Install Step: 6"
+if [ "$ECHO_IDLE_YN" = "y" ] || [ "$ECHO_IDLE_YN" = "Y" ] ; then
+  echo "Configuring Echo-Idle Feature..."
+  rm -f "$ID"/custom/echo-idle
+  echo "$ECHO_IDLE_CONF" > "$ID"/custom/echo-idle
+  if  ! (grep "echo_idle" /home/irlp/custom/custom_decode &>/dev/null) ; then
+    # remove old exit 0
+    sed "s-exit 0- -" /home/irlp/custom/custom_decode > /home/irlp/custom/custom_decode.temp
+    mv -f /home/irlp/custom/custom_decode.temp /home/irlp/custom/custom_decode
+    echo "# change ABC to desired echo idle on code" >> /home/irlp/custom/custom_decode
+    echo 'if [ "$1" = "ABC" ] ; then "$ECHO_SCRIPT"/echo_idle on ; exit 1 ; fi' >> /home/irlp/custom/custom_decode
+    echo "# change CBA to desired echo idle off code" >> /home/irlp/custom/custom_decode
+    echo 'if [ "$1" = "CBA" ] ; then "$ECHO_SCRIPT"/echo_idle off ; exit 1 ; fi' >> /home/irlp/custom/custom_decode
+  fi
+  echo " " >> /home/irlp/custom/custom_decode
+  echo "exit 0 " >> /home/irlp/custom/custom_decode
+
+  echo "" >> /home/irlp/custom/custom_on
+  echo "# Added for EchoIRLP Echo Idle feature..." >> /home/irlp/custom/custom_on
+  echo 'if [ -f "$LOCAL"/echoidle ] ; then "$ECHO_SCRIPT"/echoidle_sleep $1 $2 $3 $4 ; fi' >> /home/irlp/custom/custom_on
+  chown repeater.repeater /home/irlp/custom/custom_on
+  chmod 755 /home/irlp/custom/custom_on
+
+  echo "" >> /home/irlp/custom/custom_off
+  echo "# Added for EchoIRLP Echo Idle feature..." >> /home/irlp/custom/custom_off
+  echo 'if [ -f "$LOCAL"/echoidle ] ; then "$ECHO_SCRIPT"/echoidle_wake $1 $2 $3 $4 ; fi' >> /home/irlp/custom/custom_off
+  echo "# Clean-up in case we timed-out" >> /home/irlp/custom/custom_off
+  echo 'if [ ! -f "$LOCAL"/active -a -f "$LOCAL"/echo_active ] ; then' >> /home/irlp/custom/custom_off
+  echo '  rm -f "$LOCAL"/echo_active' >> /home/irlp/custom/custom_off
+  echo '  rm -f "$LOCAL"/echo_call' >> /home/irlp/custom/custom_off
+  echo '  rm -f "$LOCAL"/node_id' >> /home/irlp/custom/custom_off
+  echo "fi" >> /home/irlp/custom/custom_off
+fi
+
+#######################################
+#        end idle conference setup    #
+#######################################
+
+#######################################
+#   Set up -L / -R filter             #
+#######################################
+echo "Install Step: 7"
+if [ "$ECHO_LR" = "Y" ] || [ "$ECHO_LR" = "y" ] ; then
+  echo "user" > $ID/custom/type_deny
+else
+  cp /dev/null $ID/custom/type_deny
+fi
+
+#######################################
+#   End -L / -R Filter setup          #
+#######################################
+
+#######################################
+#    start custom_decode prefix add   #
+#######################################
+echo "Install Step: 8"
+if ! `grep echo_end /home/irlp/custom/custom_decode &>/dev/null` ; then
+   echo -n "Modifying /home/irlp/custom/custom_decode ... "
+
+   NUM_DIGITS=`echo $ECHO_PRE | awk '{ nc=0; for(i=0;iNF;i++); nc=nc+length($1); } END { print nc }'`
+
+   # remove old exit 0
+   sed "s-exit 0- -" /home/irlp/custom/custom_decode > /home/irlp/custom/custom_decode.temp
+   mv -f /home/irlp/custom/custom_decode.temp /home/irlp/custom/custom_decode
+
+   echo "# Echolink Prefix detector" >> /home/irlp/custom/custom_decode
+   echo "# If you change the EchoIRLP prefix, you must also change \"num\" below to the number of digits in the prefix." >> /home/irlp/custom/custom_decode
+   echo "eval \`echo \$1 | awk -v num="$NUM_DIGITS" '{ " >> /home/irlp/custom/custom_decode
+   echo '     print "PRE="substr($1,1,num);' >> /home/irlp/custom/custom_decode
+   echo "     print \"NODE=\"substr(\$1,(num)+1,length(\$1))}'\`" >> /home/irlp/custom/custom_decode
+   echo "" >> /home/irlp/custom/custom_decode
+   echo "#Call echolink conferences using "star node" method" >> /home/irlp/custom/custom_decode
+   echo "if [ \"\$PRE\" = \"$ECHO_PRE\" ] ; then \"\$ECHO_SCRIPT\"/echo_call \$NODE ; exit 1 ; fi" >> /home/irlp/custom/custom_decode
+   echo "" >> /home/irlp/custom/custom_decode
+
+   # Change the "73" decode line to call EchoIRLP end script
+   awk '{ if ( $0 !~/\"\$1\" = \"73\"/ ) print $0 ; else print "if [ \"\$1\" = \"73\" ] \; then \"\$ECHO_SCRIPT\"/echo_end \; exit 1 \; fi" }' /home/irlp/custom/custom_decode > /home/irlp/custom/custom_decode.temp
+   mv -f /home/irlp/custom/custom_decode.temp /home/irlp/custom/custom_decode
+
+   # Add the "73" decode line to call EchoIRLP end script if it is missing
+   if ! (grep '"$1" = "73"' /home/irlp/custom/custom_decode) ; then 
+     echo 'if [ "$1" = "73" ] ; then "$ECHO_SCRIPT"/echo_end ; exit 1 ; fi' >> /home/irlp/custom/custom_decode 
+   fi
+
+   echo "" >> /home/irlp/custom/custom_decode
+   echo "exit 0 " >> /home/irlp/custom/custom_decode
+
+   /bin/chown repeater.repeater /home/irlp/custom/custom_decode
+   /bin/chmod 755 /home/irlp/custom/custom_decode
+   echo "[ DONE ]"
+else
+   echo "NOTE: /home/irlp/custom/custom_decode already contains EchoIRLP calls."
+fi
+
+#######################################
+#    end custom_decode prefix add     #
+#######################################
+
+#######################################
+# Set custom_decode for status update # 
+#######################################
+echo "Install Step: 9"
+if ! `grep echo_status /home/irlp/custom/custom_on &>/dev/null` ; then
+   echo -n "Create/modify /home/irlp/custom/custom_on ... "
+   echo "#" >> /home/irlp/custom/custom_on
+   echo "# Added for EchoIRLP status page update" >> /home/irlp/custom/custom_on
+   echo "\$ECHO_SCRIPT/echo_status" >> /home/irlp/custom/custom_on
+   echo "[ DONE ]"
+else
+   echo "NOTE: /home/irlp/custom/custom_on already modified"
+fi
+
+if ! `grep echo_status /home/irlp/custom/custom_off &>/dev/null` ; then
+   echo -n "Create/modify /home/irlp/custom/custom_off ... "
+   echo "#" >> /home/irlp/custom/custom_off
+   echo "# Added for EchoIRLP status page update" >> /home/irlp/custom/custom_off
+   echo "\$ECHO_SCRIPT/echo_status" >> /home/irlp/custom/custom_off
+   echo "[ DONE ]"
+else
+   echo "NOTE: /home/irlp/custom/custom_off already modified"
+fi
+#
+# These are safe to run anytime
+#
+sed "s/\#export CUSTOM_ON=YES/export CUSTOM_ON=YES/" /home/irlp/custom/environment > /home/irlp/custom/environment.temp
+mv -f /home/irlp/custom/environment.temp /home/irlp/custom/environment
+
+sed "s/\#export CUSTOM_OFF=YES/export CUSTOM_OFF=YES/" /home/irlp/custom/environment > /home/irlp/custom/environment.temp
+mv -f /home/irlp/custom/environment.temp /home/irlp/custom/environment
+
+sed "s/\export CUSTOM_ON=NO/export CUSTOM_ON=YES/" /home/irlp/custom/environment > /home/irlp/custom/environment.temp
+mv -f /home/irlp/custom/environment.temp /home/irlp/custom/environment
+
+sed "s/\export CUSTOM_OFF=NO/export CUSTOM_OFF=YES/" /home/irlp/custom/environment > /home/irlp/custom/environment.temp
+mv -f /home/irlp/custom/environment.temp /home/irlp/custom/environment
+
+/bin/chown repeater.repeater /home/irlp/custom/custom_on
+/bin/chmod 755 /home/irlp/custom/custom_on
+/bin/chown repeater.repeater /home/irlp/custom/custom_off
+/bin/chmod 755 /home/irlp/custom/custom_off
+
+#######################################
+# End custom_decode for status update # 
+#######################################
+
+#######################################
+#    start rc.irlp edit               #
+#######################################
+echo "Install Step: 10"
+if ! `grep "Starting the Bridge" /home/irlp/custom/rc.irlp &>/dev/null` ; then
+  echo -n "Adding TBD startup to /home/irlp/custom/rc.irlp ... "
+  echo "" >> /home/irlp/custom/rc.irlp
+  if [ "$TBD_YN" = "Y" ] || [ "$TBD_YN" = "y" ] ; then
+    cat <<-EOT >> /home/irlp/custom/rc.irlp
+	
+	echo "Starting the Bridge..."
+	/sbin/service tbd restart
+	sleep 5
+EOT
+  echo "[ DONE ]"
+  fi
+else
+  echo "NOTE: rc.irlp already contains TBD startup code."
+fi
+
+if ! `grep "Enabling connections to the EchoLink Node" /home/irlp/custom/rc.irlp &>/dev/null` ; then
+   echo -n "Adding EchoIRLP startup to /home/irlp/custom/rc.irlp ... "
+   cat <<-EOT >> /home/irlp/custom/rc.irlp
+	
+	echo -n "Enabling connections to the EchoLink Node..."
+	/bin/su - -c "\$ECHO_SCRIPT/echo_enable" repeater &>/dev/null
+	echo "done!"
+EOT
+   echo "[ DONE ]"
+else
+   echo "NOTE: rc.irlp already contains EchoIRLP startup code."
+fi
+
+#######################################
+#    end rc.irlp edit                 #
+#######################################
+
+#######################################
+#  Adding rsync entry to custom.crons #
+#######################################
+echo "Install Step: 11"
+if ! `grep echo_update /home/irlp/custom/custom.crons &>/dev/null` ; then
+  echo -n "Adding rsync entry to custom.crons ... "
+  HOUR=$[ $RANDOM % 23 ]
+  MIN=$[ $RANDOM % 60 ]
+  if [ "$MIN" -le "9" ] ; then MIN=0$MIN ; fi
+  cat <<-EOT >> /home/irlp/custom/custom.crons
+	#
+	# Update EchoIRLP filesystem from EchoIRLP server
+	$MIN $HOUR * * * (/home/EchoIRLP/scripts/echo_update files &>/dev/null)
+EOT
+  echo "[ DONE ]"
+else
+  echo "NOTE: custom.crons already contains 'echo_update files' entry."
+fi
+
+########################################
+# Finished rsync entry to custom.crons #
+########################################
+
+/bin/chown repeater.repeater /home/EchoIRLP/ -R
+/bin/chmod +x $CUSTOM/*
+
+#######################################
+#   Testing for APT GET               #
+#######################################
+if ! (rpm -q apt &>/dev/null) ; then 
+  cat <<-EOT
+	I notice that you do not have APT installed.  APT is recommended as the
+	method of keeping your Linux system current with the latest software
+	releases for critical packages.
+EOT
+  echo -n "Should I install APT for you now? (y/N)"
+  read APT
+  if [ "$APT" = "Y" ] || [ "$APT" = "y" ] ; then
+    rpm -Uvh ftp://redhat.irlp.net/pub/irlp/apt/apt-install*.rpm
+    /usr/src/apt-get/apt_install.sh
+  fi
+fi
+
+cat <<-EOT
+	########################################################################
+	  ALL DONE!!!
+	########################################################################
+	  To start using your new EchoIRLP installation you must restart IRLP.
+	  While logged in as root, run the following command:
+	      /home/irlp/custom/rc.irlp
+	
+	                                 ENJOY!
+	########################################################################
+EOT
+

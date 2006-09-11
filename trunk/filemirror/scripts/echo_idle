@@ -1,0 +1,34 @@
+#!/bin/bash
+#syntax echo_idle on|off
+
+GT=">"
+[ -z "$ECHO_SCRIPT" ] && ECHO_SCRIPT=/home/EchoIRLP/scripts
+   source $ECHO_SCRIPT/echo_common
+
+if [ "$1" = "on" ] ; then
+  touch $LOCAL/echoidle
+  if [ -f "$LOCAL"/active ] ; then
+    killall ispeaker
+    $SCRIPT/wavplay linkon
+    $SCRIPT/sfswrapper
+  else
+    $SCRIPT/wavplay linkon
+    "$ECHO_SCRIPT"/echoidle_wake
+  fi
+elif [ "$1" = "off" ] ; then
+  rm -f $LOCAL/echoidle
+
+  killall ispeaker
+  if [ ! -f "$LOCAL"/active ] ; then
+    killall ispeaker
+    $SCRIPT/wavplay linkoff
+    $SCRIPT/sfswrapper
+  else
+    $SCRIPT/wavplay linkoff
+  fi
+  if [ ! -f "LOCAL"/echo_active ] ; then
+   TBD_COMMAND disconnect all
+  fi
+else 
+  echo "usage: ${0##*/} on|off"
+fi

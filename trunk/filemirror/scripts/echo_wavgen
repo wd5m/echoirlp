@@ -1,0 +1,82 @@
+#!/bin/bash
+# $Id: echo_wavgen,v 1.2 2004/08/03 20:37:32 repeater Exp $
+# $Log: echo_wavgen,v $
+# Revision 1.2  2004/08/03 20:37:32  repeater
+# Strip the STN or REF off the node number.
+#
+# Revision 1.1  2004/08/03 19:35:00  repeater
+# Initial revision
+#
+###########################################################
+#                                                         #                  
+#  Released under the GNU Public License                  #                  
+#                                                         #                  
+#  Script     :  "echo_wavgen" modification of "wavjoin"  #
+#                Written by Tony Langdon, VK3JED          #
+#  Modfied by :  Marcus Xenakis WA2DCI                    #
+#  Version    :  .15 Beta                                 #
+#  Date       :  3/26/03                                  #
+#  About      :  Combines U Law sound files to create a   #
+#                wav file for an EchoLink callsign or     #
+#                node id number                           # 
+# Modified    :  4/8/03 changed to use /tmp               #
+#                /tmp/temp.ul is not deleted until next   #
+#                call to this script, used in echo_on     #
+#                                                         #
+###########################################################
+
+[ -z "$ECHO_SCRIPT" ] && ECHO_SCRIPT=/home/EchoIRLP/scripts
+   source $ECHO_SCRIPT/echo_common
+
+TYPE=""
+rm -f "$ECHO_AUDIO"/echo_id.wav
+rm -f /tmp/temp.ul
+
+# check for conference first
+eval `awk '/*/ {print "TYPE=conference"}' "$1"`
+if [ "$TYPE" = "conference" ] ; then
+  eval `awk '{gsub(/*/,""); gsub(/-/,""); gsub(/_/,"");
+              print "SAY="$0}' "$1"`
+fi    
+# Is this a link?
+if [ "$TYPE" = "" ] ; then 
+  eval `awk '/-L/ {print "TYPE=link"}' "$1"`
+  eval `awk '{gsub(/-L/,""); print "SAY="$0}' "$1"`
+fi
+# Is this a repeater?
+if [ "$TYPE" = "" ] ; then  
+  eval `awk '/-R/ {print "TYPE=repeater"}' "$1"`
+  eval `awk '{gsub(/-R/,""); print "SAY="$0}' "$1"`
+fi
+# Must be a Node number or Callsign
+if [ "$TYPE" = "" ] ; then  
+  SAY=`cat "$1" | tr -d "stnref"`   #KF7FLY
+fi
+
+# The following code from wavjoin
+eval `echo $SAY | awk '//{
+  print "CHAR1="substr($TEXT,1,1);
+  print "CHAR2="substr($TEXT,2,1);
+  print "CHAR3="substr($TEXT,3,1);
+  print "CHAR4="substr($TEXT,4,1);
+  print "CHAR5="substr($TEXT,5,1);
+  print "CHAR6="substr($TEXT,6,1);
+  print "CHAR7="substr($TEXT,7,1);
+  print "CHAR8="substr($TEXT,8,1);
+  print "CHAR9="substr($TEXT,9,1)}'`
+
+if [ "$CHAR1" != "" ] ; then cat "$ECHO_AUDIO"/"$CHAR1".ul >  /tmp/temp.ul ; fi
+if [ "$CHAR2" != "" ] ; then cat "$ECHO_AUDIO"/"$CHAR2".ul >> /tmp/temp.ul ; fi
+if [ "$CHAR3" != "" ] ; then cat "$ECHO_AUDIO"/"$CHAR3".ul >> /tmp/temp.ul ; fi
+if [ "$CHAR4" != "" ] ; then cat "$ECHO_AUDIO"/"$CHAR4".ul >> /tmp/temp.ul ; fi
+if [ "$CHAR5" != "" ] ; then cat "$ECHO_AUDIO"/"$CHAR5".ul >> /tmp/temp.ul ; fi
+if [ "$CHAR6" != "" ] ; then cat "$ECHO_AUDIO"/"$CHAR6".ul >> /tmp/temp.ul ; fi
+if [ "$CHAR7" != "" ] ; then cat "$ECHO_AUDIO"/"$CHAR7".ul >> /tmp/temp.ul ; fi
+if [ "$CHAR8" != "" ] ; then cat "$ECHO_AUDIO"/"$CHAR8".ul >> /tmp/temp.ul ; fi
+if [ "$CHAR9" != "" ] ; then cat "$ECHO_AUDIO"/"$CHAR9".ul >> /tmp/temp.ul ; fi
+if [ "$TYPE"  != "" ] ; then cat "$ECHO_AUDIO"/"$TYPE".ul  >> /tmp/temp.ul ; fi
+
+# Create file for EchoIRLP
+sox /tmp/temp.ul -u "$ECHO_AUDIO"/echo_id.wav
+
+exit 0
