@@ -1,3 +1,0 @@
-#!/bin/bash
-SERVERIP=`host files.echoirlp.com | cut -d " " -f4`
-echo $SERVERIP
