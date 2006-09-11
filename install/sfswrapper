@@ -1,0 +1,47 @@
+#!/bin/bash
+
+#Determines if IRLP_SPEAKER is running, and starts it if it isn't
+
+[ -z "$SCRIPT" ] && SCRIPT=/home/irlp/scripts
+source $SCRIPT/common-functions.sh
+
+#keeps ispeaker from dumping core
+ulimit -c 0
+
+if [ -f $LOCAL/connectedip ] ; then
+  FLAGS="-f`cat $LOCAL/connectedip`"
+elif [ -f $LOCAL/calledip ] ; then
+  FLAGS="-f`cat $LOCAL/calledip`"
+elif [ -f $LOCAL/echoidle ] ; then
+  # Connection is EchoIRLP idle mode, call customised script to handle this
+  "$ECHO_SCRIPT"/sfswrapper
+  exit 0
+fi
+
+if [ "$STATIONID" = "stn100" ] && [ -f $LOCAL/calledip ] && [ `cat $LOCAL/calledip` = "137.82.188.107" ] ; then
+  FLAGS="-f137.82.216.4"
+fi
+
+#if [ "$FLAGS" = "" ]; then
+#  exit 0
+#fi
+
+killall ispeaker >/dev/null 2>&1
+killall ispeaker_PCI >/dev/null 2>&1
+
+if [ -f $LOCAL/codec ] ; then
+  if [ "`cat $LOCAL/codec`" = "GSM" ] ; then
+    FLAGS="$FLAGS -j250,250"
+  fi
+fi
+
+#Adds support to run ispeaker on a different port when running on super-reflectors
+if [ -f $LOCAL/udp_port ] ; then
+  FLAGS="$FLAGS -p`cat $LOCAL/udp_port`"
+fi
+
+if [ "$PCI_FIX" = "YES" ] ; then
+  ($BIN/ispeaker_PCI $FLAGS || (sleep 2 ; $BIN/unkey; $SCRIPT/sfswrapper)) >/dev/null 2>&1 &
+else
+  ($BIN/ispeaker $FLAGS || (sleep 2 ; $BIN/unkey ; $SCRIPT/sfswrapper)) >/dev/null 2>&1 &
+fi
