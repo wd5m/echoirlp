@@ -12,7 +12,13 @@
 # v1.4: 21-May-04 VK3JED: Used variables for thebridge and tbdcnv
 # v1.5: 24-Jun-04 KC6HUR: If run more than once, will not modify rc.irlp, environment more than once
 # V1.6: 03-Aug-04 KC6HUR: Fixed a bunch of bugs, some show stoppers
-#
+# V1.7: 19-Dec-05 KC6HUR: Removed apt-get refs, added yum install. cleaned
+#                         many other items. Supports RH7.3, RH9 and FC3.
+# V1.8: 04-Sep-06 KC6HUR: Installs on FC5
+# V1.9: 17-Sep-06 WD5M: Changed tbdcnv-0.03.tar to tbdcnv-0.03.tgz
+# V1.10: 18-Sep-06 WD5M: Modified method to find tbd files.
+#			Added some -x tests to custom file edits.
+# 21-Oct-06 WD5M: Modified to install files from googlecode.com.
 ########################################################################
 #
 # MUST BE RUN AS ROOT
@@ -22,16 +28,20 @@ if [ `/usr/bin/whoami` != "root" ] ; then
   exit 1
 fi
 
-#Sets the IP of the download server
+#Sets the IP of the EchoIRLP server
 SERVERIP=redhat.irlp.net
+#The IP/name of the source web server.
+SRCIP="echoirlp.googlecode.com"
+#The source directory on the source web server.
+SRCDIR="/svn/trunk/install/"
 
 #Sets the install directory (/home/irlp required)
 ID=/home/EchoIRLP
 CUSTOM=$ID/custom
 ENVFILE=$CUSTOM/echo_environment
 SRC=/usr/src
-TBD=thebridge-0.77.tgz
-TBDCNV=tbdcnv-0.03.tar
+TBD=thebridge-0.83.tgz
+TBDCNV=tbdcnv-0.03.tgz
 
 clear
 cat <<-EOT
@@ -39,21 +49,287 @@ cat <<-EOT
 	                      EchoIRLP Installation Script
 	------------------------------------------------------------------------
 	This program installs the EchoIRLP software and sets up your EchoIRLP
-	parameters. It requires that you have previously registerd the intended
-	callsign with EchoLink.
-	
+	parameters. 
+
+        Requirements:
+        You must have IRLP installed and fully functional.
+        You must have previously registerd the intended callsign and password
+        with EchoLink.
+
+        NOTE: The IRLP volunteer support team WILL NOT provide support after
+              installing EchoIRLP.
+
 	NOTE: You must have installed the GNU GCC compiler and the rest of the
-	      Linux development subsystem.
+	      Linux development subsystem. If they are not already installed,
+	      this installation script will attempt to install them for you.
 	
 	NOTE: The prefered option is capitalized on (y/n) questions. When an
 	      option shows a default value, pressing the enter key will
 	      automatically use the default value. Case sensitive items will be
 	      shifted to the correct tense by the install script.
 	------------------------------------------------------------------------
-	
 EOT
 echo -n "Press ENTER to continue or CTRL-C to cancel : " ; read
 clear
+cat <<-EOT
+	------------------------------------------------------------------------
+	                      EchoIRLP Installation Script
+	------------------------------------------------------------------------
+EOT
+
+# I "borrowed" this section of the script from install-ra --kc6hur
+
+# THIS CHECKS FOR REDHAT/FEDORA VERSION
+
+R=""
+if [ -f /etc/redhat-release ]; then
+  R=`cat /etc/redhat-release | cut -d' ' -f5`
+fi
+
+if [ -f /etc/fedora-release ]; then
+  R="fc`cat /etc/redhat-release | cut -d' ' -f4`"
+fi
+
+if [ "$R" = "7.3" ] || [ "$R" = "9" ] ; then
+      echo "The script has detected you are running RedHat $R."
+
+elif [ "$R" = "fc3" ] ; then
+      echo "The script has detected you are running Fedora $R."
+elif [ "$R" = "fc5" ] ; then
+      echo "The script has detected you are running Fedora $R."
+else
+      echo "The script could not detect an IRLP supported version of Linux." 
+      echo "If you are not running an IRLP supported distribution, please read every"
+      echo "line of this script before continuing, as it may not install on your"
+      echo "system. You will have to remove this check to get it to install."
+      echo "------------------------------------------------------------------------"
+      echo
+      echo "Script Terminated"
+      exit 1
+fi
+
+if ! (awk --version > /dev/null 2>&1) ; then
+clear
+cat <<-EOT
+	------------------------------------------------------------------------
+	                      EchoIRLP Installation Script
+	------------------------------------------------------------------------
+	The script has detected that the string language AWK is not installed.
+
+	This is required for the echo-install to continue. Make sure you
+	installed all of the packages that are required in the install.
+
+	------------------------------------------------------------------------
+
+	Script Terminated
+EOT
+  exit 1
+else
+  echo "String Language (awk) detected ...      [  OK  ]"
+fi
+
+#THIS CHECKS TO MAKE SURE NCFTPGET IS INSTALLED
+if ! [ -f /usr/bin/ncftpget ] ; then
+  echo "The script has detected that the FTP client NCFTPGET is not installed."
+  echo
+  echo "This is required for the echoirlp-install to continue. Make sure you"
+  echo "installed all of the packages that are required in the install."
+  echo
+  echo -n "Press ENTER to exit."; read
+  exit 1
+else
+  echo "FTP Client NCFTPGET detected OK."
+fi
+
+#THIS CHECKS TO MAKE SURE WGET IS INSTALLED
+if ! (wget --version > /dev/null 2>&1) ; then
+  echo "The script has detected that the web browser wget is not installed."
+  echo
+  echo "This is required for the echoirlp-install to continue. Make sure you"
+  echo "installed all of the packages that are required in the install."
+  echo
+  echo -n "Press ENTER to exit."; read
+  exit 1
+else
+  echo "Web Browser WGET detected OK."
+fi
+
+#####
+##### Redhat 7.3
+#####
+if [ "$R" = "7.3" ] ; then
+  if (rpm -q yum &>/dev/null) ; then
+    echo "Update Manager (yum) detected ...       [  OK  ]"
+  else
+    clear
+    cat <<-EOT
+	------------------------------------------------------------------------
+	                      EchoIRLP Installation Script
+	------------------------------------------------------------------------
+	Installing "yum" for RedHat 7.3 ...
+	Downloading the files from the server ...
+	EOT
+    ncftpget ftp.irlp.net /tmp /pub/remote/yum.conf.73.patch /pub/remote/httpd.conf.73.patch
+
+    echo
+    echo "- Installing gnupg, python, rpm-python, and yum ... "
+    rpm -Uh http://download.fedoralegacy.org/redhat/7.3/updates/i386/gnupg-1.0.7-13.i386.rpm 
+    rpm -Uh http://download.fedoralegacy.org/redhat/7.3/updates/i386/python-1.5.2-43.73.i386.rpm 
+    rpm -Uh http://download.fedoralegacy.org/redhat/7.3/os/i386/rpm-python-4.0.4-7x.18.i386.rpm 
+    rpm -Uh http://download.fedoralegacy.org/redhat/7.3/os/i386/patch-2.5.4-12.i386.rpm
+    rpm -Uh http://download.fedoralegacy.org/redhat/7.3/legacy-utils/i386/yum-1.0.3-6.0.7.x.legacy.noarch.rpm 
+
+    echo
+    echo -n "- Importing GPG keys for YUM to run ...."
+    gpg --import /usr/share/doc/yum-1.0.3/*GPG-KEY 
+    gpg --import /usr/share/doc/yum-1.0.3/*GPG-KEY 
+    echo "done."
+
+    echo
+    echo -n "- Editing the yum.conf file to allow kernel update to come down ...."
+    patch /etc/yum.conf /tmp/yum.conf.73.patch
+
+    echo
+    echo "- Performing YUM update (THIS WILL TAKE A WHILE - 20-40 mins)"
+    echo "  DO NOT press CTRL-C unless you are sure it is stalled."
+    echo
+    echo "Press ENTER to continue, or CTRL-C to exit." ; read
+    yum -y update
+    echo "  YUM update complete"
+
+    echo
+    echo -n "- Editing the yum.conf file to block kernel updates ...."
+    patch -R /etc/yum.conf /tmp/yum.conf.73.patch
+    rm -r /tmp/yum.conf.*.patch
+
+    echo
+    echo "- Setting the YUM updater to run once per day ...."
+    chkconfig yum on 
+    echo -n "  "
+    service yum start
+  fi
+#####
+##### REDHAT 9
+#####
+elif [ "$R" = "9" ] ; then
+  if (rpm -q yum &>/dev/null) ; then
+    echo "Update Manager (yum) detected ...       [  OK  ]"
+  else
+    clear
+    cat <<-EOT
+	------------------------------------------------------------------------
+	                      EchoIRLP Installation Script
+	------------------------------------------------------------------------
+	Installing \"yum\" for RedHat 9 ...
+	Downloading the files from the server ...
+	EOT
+    ncftpget ftp.irlp.net /tmp /pub/remote/yum.conf.9.patch /pub/remote/httpd.conf.9.patch
+
+    echo
+    echo "- Installing gnupg, libxml2(python), and yum ... "
+    rpm -Uh http://download.fedoralegacy.org/redhat/9/updates/i386/gnupg-1.2.1-9.i386.rpm 
+    rpm -Uh http://download.fedoralegacy.org/redhat/9/os/i386/libxml2-2.5.4-1.i386.rpm
+    rpm -Uh http://download.fedoralegacy.org/redhat/9/os/i386/libxml2-python-2.5.4-1.i386.rpm
+    rpm -Uh http://download.fedoralegacy.org/redhat/9/legacy-utils/i386/yum-2.0.5-0.9.2.legacy.noarch.rpm
+    rpm -Uh http://download.fedoralegacy.org/redhat/9/os/i386/patch-2.5.4-16.i386.rpm
+
+    echo
+    echo -n "- Importing GPG keys for YUM to run ...."
+    rpm --import http://www.fedoralegacy.org/FEDORA-LEGACY-GPG-KEY
+    rpm --import http://www.redhat.com/security/db42a60e.txt
+    echo "done."
+
+    echo
+    echo -n "- Editing the yum.conf file to allow kernel update to come down ...."
+    patch /etc/yum.conf /tmp/yum.conf.9.patch
+
+    echo
+    echo "- Performing YUM update (THIS WILL TAKE A WHILE - 20-40 mins)"
+    echo "  DO NOT press CTRL-C unless you are sure it is stalled."
+    echo
+    echo "Press ENTER to continue, or CTRL-C to exit." ; read
+    yum -y update
+    echo "  YUM update complete"
+
+    echo
+    echo -n "- Editing the yum.conf file to block kernel updates ...."
+    patch -R /etc/yum.conf /tmp/yum.conf.9.patch
+    rm -r /tmp/yum.conf.*.patch
+
+    echo
+    echo "- Setting the YUM updater to run once per day ...."
+    chkconfig yum on 
+    echo -n "  "
+    service yum start
+  fi
+#####
+##### FEDORA CORE 3
+#####
+elif [ "$R" = "fc3" ] ; then
+  echo "FC3 already has yum installed"
+elif [ "$R" = "fc5" ] ; then
+  echo "FC5 already has yum installed"
+fi
+#####
+##### Check for/Install SED
+#####
+if ! (rpm -q sed &>/dev/null) ; then
+  echo "WARNING: String Editor (sed) not found"
+  echo "Installing String Editor (sed) ..."
+  yum -y install sed
+fi
+echo -n "String Editor (sed) detected ...        "
+if (rpm -q sed &>/dev/null) ; then
+  echo "[  OK  ]"
+else
+  echo "[ FAIL ]"
+  echo "String Edior (sed) not found and could not be installed."
+  echo ""
+  echo "Script Terminated"
+  exit 1
+fi
+
+########################################################################
+# Make sure GCC and MAKE are available
+########################################################################
+#####
+##### Check for/Install GCC
+#####
+COMPILER=gcc
+echo ""
+if ! (rpm -q $COMPILER &>/dev/null) ; then
+  echo "WARNING: Missing - ${COMPILER}"
+  echo "Installing Compiler (gcc) ..."
+  yum -y install $COMPILER
+fi
+echo -n "Compiler (gcc) detected ...             "
+if (rpm -q $COMPILER &>/dev/null) ; then
+  echo "[  OK  ]"
+else
+  echo "[ FAIL ]"
+  echo "Compiler (gcc) was not found and could not be installed."
+  echo
+  echo "Script Terminated"
+fi
+#####
+##### Check for/Install MAKE
+#####
+if ! (rpm -q make &>/dev/null) ; then
+  echo "WARNING: Missing - make"
+  echo "Installing MAKE Program (make) ..."
+  yum -y install make
+fi
+echo -n "MAKE (make) detected ...                "
+if (rpm -q make &>/dev/null) ; then
+  echo "[  OK  ]"
+else
+  echo "[ FAIL ]"
+  echo "MAKE was not found and could not be installed."
+  echo
+  echo "Script Terminated"
+fi
+
+########################################################################
 
 echo -n "Making EchoIRLP directory structure ... "
 if [ ! -d $ID ] ; then
@@ -81,106 +357,61 @@ cd $ID
 echo
 echo "Downloading EchoIRLP software tarfiles ... "
 
-if [ ! -f $ID/Base_Install.tgz ] ; then
-  /usr/bin/ncftpget -u echoinstall -p ech01rlp $SERVERIP $ID Base_Install.tgz
+if [ ! -s $ID/Base_Install.tgz ] ; then
+  wget -N -T 30 -q -O "${ID}/Base_Install.tgz" "http://${SRCIP}${SRCDIR}/Base_Install.tgz"
+  EC=$?
+  if [ $EC -ne 0 ] ; then
+    echo "ERROR: wget returned error $EC while downloading Base_Install.tgz"
+    exit 1
+  fi
 else
   echo "NOTE: File already exists - ${ID}/Base_Install.tgz"
 fi
-if [ ! -f ${SRC}/${TBD} ] ; then
-  /usr/bin/ncftpget -u echoinstall -p ech01rlp $SERVERIP $SRC $TBD
+if [ ! -s ${SRC}/${TBD} ] ; then
+  wget -N -T 30 -q -O "${SRC}/${TBD}" "http://${SRCIP}${SRCDIR}/${TBD}"
+  EC=$?
+  if [ $EC -ne 0 ] ; then
+    echo "ERROR: wget returned error $EC while downloading ${TBD}"
+    exit 1
+  fi
 else
   echo "NOTE: File already exists - ${SRC}/${TBD}"
 fi
-if [ ! -f $SRC/$TBDCNV ] ; then
-  /usr/bin/ncftpget -u echoinstall -p ech01rlp $SERVERIP $SRC $TBDCNV
+if [ ! -s $SRC/$TBDCNV ] ; then
+  wget -N -T 30 -q -O "${SRC}/${TBDCNV}" "http://${SRCIP}${SRCDIR}/${TBDCNV}"
+  EC=$?
+  if [ $EC -ne 0 ] ; then
+    echo "ERROR: wget returned error $EC while downloading ${TBDCNV}"
+    exit 1
+  fi
 else
   echo "NOTE: File already exists - ${SRC}/${TBDCNV}"
 fi
 
-# check for tbd tar 
-echo
-echo "Note TBD (TheBridge) is required for direct EchoLink connectivity."
-echo "Without TBD, you will be limited to connecting to special TBD conferences."
-echo "It is recommended that you select Y here."
-TBD_YN=""
-while  [ ! "$TBD_YN" = "Y" ] && [ ! "$TBD_YN" = "y" ] &&  [ ! "$TBD_YN" = "N" ] && [ ! "$TBD_YN" = "n" ]; do
-  TBD_YN="Y"
-  echo -n "Will you be installing TBD (Y/n) " ; read TBD_YN
-done
-
-if [ "$TBD_YN" = "Y" ] || [ "$TBD_YN" = "y" ] ; then
-  # if yes then make sure tar is present - otherwise halt
-  if [ ! -f $SRC/$TBD ] ; then
-    TBD_OK="N"
-    echo "ERROR: File not found - ${SRC}/${TBD}"
-#    echo -n  "Press ENTER to cancel install : " ; read
+# if yes then make sure tarball is present - otherwise halt
+if [ ! -s ${SRC}/${TBD} ] ; then
+  TBD_OK="N"
+  echo "ERROR: File not found - ${SRC}/${TBD}"
+  exit 0
+else 
+  TBD_OK="Y"
+  # check for tbdcnv zip file
+  if [ ! -s ${SRC}/${TBDCNV} ] ; then
+    echo "ERROR: File not found - ${SRC}/${TBDCNV}"
+    TBDCNV_OK="N"
     exit 0
-  else 
-    TBD_OK="Y"
-    # check for tbdcnv zip file
-    if [ ! -f ${SRC}/${TBDCNV} ] ; then
-      echo "ERROR: File not found - ${SRC}/${TBDCNV}"
-      TBDCNV_OK="N"
-#      echo -n  "Press ENTER to cancel install : " ; read
-      exit 0
-    else
-      TBDCNV_OK="Y"
-    fi
+  else
+    TBDCNV_OK="Y"
   fi
 fi
 
-
 # check for echoirlp tar
-if [ ! -f ${ID}/Base_Install.tgz ] ; then
+if [ ! -s ${ID}/Base_Install.tgz ] ; then
   echo "ERROR: File not found - ${ID}/Base_Install.tgz"
   ECHO_OK="N"
-#  echo -n  "Press ENTER to cancel install : " ; read
   exit 0
 else
   ECHO_OK="Y"
-fi
-
-# Check for GCC and MAKE
-R=""
-if [ -f /etc/redhat-release ]; then
-  R=`cat /etc/redhat-release | cut -d' ' -f5`
-fi
-
-if [ "$R" = "6.2" ] ; then
-  COMPILER=egcs
-else
-  COMPILER=gcc
-fi
-
-if ! (rpm -q $COMPILER &>/dev/null) ; then
-  echo "ERROR: Missing - ${COMPILER}"
-  if (rpm -q apt &>/dev/null) ; then
-    echo "But you have APT installed, so we can fix that now for you..."
-    sleep 5
-    apt-get update ; apt-get install $COMPILER -y
-  else
-    SUGGEST=YES
-  fi
-fi
-if ! (rpm -q make &>/dev/null) ; then
-  echo "ERROR: Missing - make"
-  if (rpm -q apt &>/dev/null) ; then
-    echo "But you have APT installed, so we can fix that now for you..."
-    apt-get update ; apt-get install make -y
-  else
-    SUGGEST=YES
-  fi
-fi
-if [ "$SUGGEST" = "YES" ] ; then
-   cat <<-EOT
-	It also seems that you are not using APT. We STRONGLY recommend that you
-	install apt in order to keep your linux OS current, and make package
-	installation like this easier.
-	
-	Please install the GCC rpm package or install apt-get (instructions on
-	http://redhat.irlp.net) echo "and then re-run this script.
-EOT
-  exit 0
 fi
 
 #######################################
@@ -192,8 +423,6 @@ while [ ${#YOUR_CALL} -lt 4 ] || [ ${#YOUR_CALL} -gt 8 ]; do
   echo -n "Enter the node owner's callsign (Without -L/-R suffix - e.g. w0abc): " ; read YOUR_CALL
   if [ ${#YOUR_CALL} -lt 4 ] || [ ${#YOUR_CALL} -gt 8 ] ; then
     echo "ERROR: Your callsign must be between 4 and 8 characters"
-#    echo -n "Press Enter to start entering info again." ; read
-#    clear
   fi
 done
 
@@ -203,8 +432,6 @@ while [ ${#ECHO_CALL} -lt 4 ] || [ ${#ECHO_CALL} -gt 8 ]; do
   echo -n "Enter the Repeater (-R) or Link (-L) callsign, with -L or -R suffix (e.g. w0abc-r): " ; read ECHO_CALL
   if [ ${#ECHO_CALL} -lt 4 ] || [ ${#ECHO_CALL} -gt 8 ] ; then
     echo "ERROR: The callsign must be between 4 and 8 characters"
-#    echo -n "Press Enter to start entering info again." ; read
-#    clear
   fi
 done
 
@@ -214,8 +441,6 @@ while [ ${#ECHO_NAME} -lt 2 ] || [ ${#ECHO_NAME} -gt 32 ]; do
   echo -n "Enter the EchoLink node description. (e.g. 449.300 131.8 ): " ; read ECHO_NAME
   if [ ${#ECHO_NAME} -lt 2 ] || [ ${#ECHO_NAME} -gt 32 ] ; then
     echo "ERROR: The node name must be between 2 and 32 characters"
-#    echo -n "Press Enter to start entering info again." ; read
-#    clear
   fi
 done
 
@@ -225,8 +450,6 @@ while [ ${#ECHO_LOCATION} -lt 2 ] || [ ${#ECHO_LOCATION} -gt 25 ]; do
   echo -n "Enter the EchoLink node location. This is used on the status page.: " ; read ECHO_LOCATION
   if [ ${#ECHO_LOCATION} -lt 2 ] || [ ${#ECHO_LOCATION} -gt 25 ] ; then
     echo "ERROR: The location must be between 2 and 25 characters"
-#    echo -n "Press Enter to start entering info again." ; read
-#    clear
   fi
 done
 echo ""
@@ -235,32 +458,25 @@ while [ ${#ECHO_PASS} -lt 2 ] || [ ${#ECHO_PASS} -gt 32 ]; do
   echo -n "Enter the EchoLink password (e.g. whoknows): " ; read ECHO_PASS
   if [ ${#ECHO_PASS} -lt 2 ] || [ ${#ECHO_PASS} -gt 32 ] ; then
     echo "ERROR: The password must be between 2 and 32 characters"
-#    echo -n "Press Enter to start entering info again." ; read
-#    clear
- fi
+  fi
 done
 
 echo ""
 ECHO_PRE=""
 while [ ${#ECHO_PRE} -lt 1 ] || [ ${#ECHO_PRE} -gt 8 ]; do
- echo -n "Enter the EchoLink DTMF prefix - Any DTMF starting with this will be treated as an EchoLink Call "
- echo -n "(e.g. S or P or P123): " ; read ECHO_PRE
+  echo -n "Enter the EchoLink DTMF prefix - Any DTMF starting with this will be treated as an EchoLink Call "
+  echo -n "(e.g. S or P or P123): " ; read ECHO_PRE
  
- CHECK=`echo "$ECHO_PRE" | awk '{ if ( $0 ~/\*/ || $0 ~/\#/ ) print "BAD" }'`
+  CHECK=`echo "$ECHO_PRE" | awk '{ if ( $0 ~/\*/ || $0 ~/\#/ ) print "BAD" }'`
 
- if [ ${#ECHO_PRE} -lt 1 ] || [ ${#ECHO_PRE} -gt 8 ] ; then
-   echo "ERROR: The prefix must be between 1 and 8 characters"
-#   echo -n "Press Enter to start entering info again." ; read
-#   clear
- fi
+  if [ ${#ECHO_PRE} -lt 1 ] || [ ${#ECHO_PRE} -gt 8 ] ; then
+    echo "ERROR: The prefix must be between 1 and 8 characters"
+  fi
  
- if [ "$CHECK" = "BAD" ] ; then
-   echo "Error : You cannot use the symbols '*' or '#'. You must use an 'S' or 'P' instead."
-#   echo -n "Press Enter to start entering info again." ; read
-   ECHO_PRE="" 
-#   clear
- fi
-
+  if [ "$CHECK" = "BAD" ] ; then
+    echo "Error : You cannot use the symbols '*' or '#'. You must use an 'S' or 'P' instead."
+    ECHO_PRE="" 
+  fi
 done
 
 echo ""
@@ -274,123 +490,86 @@ ECHO_SN_YN=""
  while  [ ! "$ECHO_SN_YN" = "Y" ] && [ ! "$ECHO_SN_YN" = "y" ] &&  [ ! "$ECHO_SN_YN" = "N" ] && [ ! "$ECHO_SN_YN" = "n" ]; do
  echo -n "Do you want the system to anounce the callsign of the remote node? (y/n): " ; read ECHO_SN_YN
 done
+#
+# The next two questions used to prompt the installer; however,
+# since we are installing TBD, we will just default the values
+# and not ask. The "Y" values were for the OLD EchoLink stuff.
+#
+ECHO_SERVERS_YN="N"
+ECHO_SC_YN="N"
+#
+# DO NOT CHANGE TBD_IP
+#
+TBD_IP="127.0.0.1"
 
 echo ""
-ECHO_SERVERS_YN=""
- while  [ ! "$ECHO_SERVERS_YN" = "Y" ] && [ ! "$ECHO_SERVERS_YN" = "y" ] &&  [ ! "$ECHO_SERVERS_YN" = "N" ] && [ ! "$ECHO_SERVERS_YN" = "n" ]; do
- echo -n "Do you want the system to use the EchoLink name servers (No is recommended if using TBD) (y/N): " ; read ECHO_SERVERS_YN
-done
+TBD_HOME="/home/EchoIRLP/tbd"
+echo -n "Where will tbd be installed (default /home/EchoIRLP/tbd): " ; read TBD_HM
+if [ "$TBD_HM" != "" ] ; then
+  TBD_HOME=$TBD_HM
+fi
 
-echo ""
-ECHO_SC_YN=""
-while  [ ! "$ECHO_SC_YN" = "Y" ] && [ ! "$ECHO_SC_YN" = "y" ] &&  [ ! "$ECHO_SC_YN" = "N" ] && [ ! "$ECHO_SC_YN" = "n" ]; do
-   echo -n "Do you want the system to use IRLP protocol to shared conferences (No is recommended if using TBD) (y/N): " ; read ECHO_SC_YN
-done
-
-echo ""
-TBD_IP="0.0.0.0"
-if [ "$TBD_YN" = "y" ] || [ "$TBD_YN" = "Y" ] ; then
-  TBD_IP="127.0.0.1"
-  EIP=""
-  echo -n "Enter TBD IP (default is 127.0.0.1) " ; read EIP
-  if ! [ "$EIP" = "" ] ; then
-    TBD_IP=$EIP
-  fi
-  if ! [ "$TBD_IP" = "127.0.0.1" ] ; then
-    echo "The install script is not currently set up to handle remote TBD configs"
-#    echo -n "Press Enter to exit" ; read
-    exit 1
-  fi
-
-  echo ""
-  TBD_HOME="/home/EchoIRLP/tbd"
-  echo -n "Where will tbd be installed (default /home/EchoIRLP/tbd): " ; read TBD_HM
-  if [ "$TBD_HM" != "" ] ; then
-    TBD_HOME=$TBD_HM
-  fi
-
-  echo "" 
-  TBD_DATA="/home/EchoIRLP/tbd/data"
-  echo -n "Where will tbd data be kept (default /home/EchoIRLP/tbd/data): " ; read TBD_DA
-  if ! [ "$TBD_DA" = "" ] ; then
-    TBD_DATA=$TBD_DA
-  fi
-
-  echo ""
-  TBD_PASS="password"
-    echo -n "Enter the TBD RTP password (default = password): " ; read TBD_PA
-    if ! [ "$TBD_PA" = "" ] ; then
-      TBD_PASS=$TBD_PA
-    fi
-
-  echo ""
-  TBD_ADMIN_PASS="password"
-    echo -n "Enter the TBD admin password (default = password): " ; read TBD_ADMIN_PA
-    if ! [ "$TBD_ADMIN_PA" = "" ] ; then
-      TBD_ADMIN_PASS=$TBD_ADMIN_PA
-    fi
-
-  echo ""
-  TBD_SYSOP_PASS="password"
-    echo -n "Enter the TBD sysop password (default = password): " ; read TBD_SYSOP_PA
-    if ! [ "$TBD_SYSOP_PA" = "" ] ; then
-      TBD_SYSOP_PASS=$TBD_SYSOP_PA
-    fi
-
-  echo ""
-  TBD_EMAIL=""
-  while [ ${#TBD_EMAIL} -lt 8 ] || [ ${#TBD_EMAIL} -gt 48 ]; do
-    echo -n "Enter an email address that EchoLink can contact you: " ; read TBD_EMAIL
-    if [ ${#TBD_EMAIL} -lt 8 ] || [ ${#TBD_EMAIL} -gt 48 ] ; then
-      echo "ERROR: The email address must be between 8 and 48 characters"
-#      echo -n "Press Enter to start entering info again." ; read
-#      clear
-    fi
-  done
-
-  echo ""
-  ECHO_IDLE_YN=""
-  while [ ! "$ECHO_IDLE_YN" = "Y" ] && [ ! "$ECHO_IDLE_YN" = "y" ] &&  [ ! "$ECHO_IDLE_YN" = "N" ] && [ ! "$ECHO_IDLE_YN" = "n" ]; do
-    echo -n "Do you want to use the echo idle feature (Connection to EchoLink Conference when node is Idle) (y/n): " ; 
-    read ECHO_IDLE_YN  
-  done
-  if [ "$ECHO_IDLE_YN" = "y" ] || [ "$ECHO_IDLE_YN" = "Y" ] ; then
-    ECHO_IDLE_CONF=""
-    while [ ${#ECHO_IDLE_CONF} -lt 2 ] || [ ${#ECHO_IDLE_CONF} -gt 32 ]; do
-      echo -n "Enter the EchoLink idling conference (e.g. *W1ABC*): " ; read ECHO_IDLE_CONF
-      if [ ${#ECHO_IDLE_CONF} -lt 2 ] || [ ${#ECHO_IDLE_CONF} -gt 32 ] ; then
-        echo "ERROR: The conference name must be between 2 and 32 characters"
-#        echo -n "Press Enter to start entering info again." ; read
-#        clear
-      fi
-    done
-    ECHO_IDLE_CONF=`echo "$ECHO_IDLE_CONF" | tr '{a-z}' '{A-Z}'`
-  fi
-
-  echo ""
-  TBD_MAX_USERS=2
-#  while [ "$TBD_MAX_USERS" -lt "1" ] || [ "$TBD_MAX_USERS" -gt "32" ]; do
-#    echo "Note: when setting max users, be aware of bandwidth needed (17.5kbps each)"
-#    echo -n "Enter the maximum tbd simultanious users (Use 2 here unless you are running a conference): " ; read TBD_MAX_U
-#    if (echo $TBD_MAX_U | egrep '^[0-9]+$' &>/dev/null) ; then
-#      if [ "${TBD_MAX_U}" -gt 0 ] && [ "${TBD_MAX_U}" -lt 33 ] ; then
-#        TBD_MAX_USERS=$TBD_MAX_U
-#      fi
-#    else
-#      echo "ERROR: The tbd maximum users must be between 1 and 32"
-#      echo -n "Press Enter to start entering info again." ; read
-#      clear
-#    fi
-#  done
-else 
-  echo -n "Do you want to use the EchoLink servers for node IP lookups? (y/n): " ; read ECHO_DNS_YN
+echo "" 
+TBD_DATA="/home/EchoIRLP/tbd/data"
+echo -n "Where will tbd data be kept (default /home/EchoIRLP/tbd/data): " ; read TBD_DA
+if ! [ "$TBD_DA" = "" ] ; then
+  TBD_DATA=$TBD_DA
 fi
 
 echo ""
+TBD_PASS="password"
+echo -n "Enter the TBD RTP password (default = password): " ; read TBD_PA
+if ! [ "$TBD_PA" = "" ] ; then
+  TBD_PASS=$TBD_PA
+fi
+
+echo ""
+TBD_ADMIN_PASS="password"
+echo -n "Enter the TBD admin password (default = password): " ; read TBD_ADMIN_PA
+if ! [ "$TBD_ADMIN_PA" = "" ] ; then
+  TBD_ADMIN_PASS=$TBD_ADMIN_PA
+fi
+
+echo ""
+TBD_SYSOP_PASS="password"
+echo -n "Enter the TBD sysop password (default = password): " ; read TBD_SYSOP_PA
+if ! [ "$TBD_SYSOP_PA" = "" ] ; then
+  TBD_SYSOP_PASS=$TBD_SYSOP_PA
+fi
+
+echo ""
+TBD_EMAIL=""
+while [ ${#TBD_EMAIL} -lt 8 ] || [ ${#TBD_EMAIL} -gt 48 ]; do
+  echo -n "Enter an email address that EchoLink can contact you: " ; read TBD_EMAIL
+  if [ ${#TBD_EMAIL} -lt 8 ] || [ ${#TBD_EMAIL} -gt 48 ] ; then
+    echo "ERROR: The email address must be between 8 and 48 characters"
+  fi
+done
+
+echo ""
+ECHO_IDLE_YN=""
+while [ ! "$ECHO_IDLE_YN" = "Y" ] && [ ! "$ECHO_IDLE_YN" = "y" ] &&  [ ! "$ECHO_IDLE_YN" = "N" ] && [ ! "$ECHO_IDLE_YN" = "n" ]; do
+  echo -n "Do you want to use the echo idle feature (Connection to EchoLink Conference when node is Idle) (y/n): " ; 
+  read ECHO_IDLE_YN  
+done
+if [ "$ECHO_IDLE_YN" = "y" ] || [ "$ECHO_IDLE_YN" = "Y" ] ; then
+  ECHO_IDLE_CONF=""
+  while [ ${#ECHO_IDLE_CONF} -lt 2 ] || [ ${#ECHO_IDLE_CONF} -gt 32 ]; do
+    echo -n "Enter the EchoLink idling conference (e.g. *W1ABC*): " ; read ECHO_IDLE_CONF
+    if [ ${#ECHO_IDLE_CONF} -lt 2 ] || [ ${#ECHO_IDLE_CONF} -gt 32 ] ; then
+      echo "ERROR: The conference name must be between 2 and 32 characters"
+    fi
+  done
+  ECHO_IDLE_CONF=`echo "$ECHO_IDLE_CONF" | tr '{a-z}' '{A-Z}'`
+fi
+
+TBD_MAX_USERS=2
+
+echo ""
 # force case for call signs and echolink passwords
-ECHO_TBD_CALL=`echo "$ECHO_CALL" | tr '{A-Z}' '{a-z}'`
-ECHO_NODE_CALL=`echo "$ECHO_CALL" | tr '{a-z}' '{A-Z}'`
-ECHO_PASSWORD=`echo "$ECHO_PASS" | tr '{a-z}' '{A-Z}'`
+ECHO_TBD_CALL=`echo "$ECHO_CALL" | tr [:upper:] [:lower:]`
+ECHO_NODE_CALL=`echo "$ECHO_CALL" | tr [:lower:] [:upper:]`
+ECHO_PASSWORD=`echo "$ECHO_PASS" | tr [:lower:] [:upper:]`
 
 #######################################
 #          end info input             #
@@ -408,77 +587,73 @@ fi
 #######################################
 #         install tbdcnv tarball      #
 #######################################
-clear
-echo "Install Step: 1"
-if [ "$TBD_YN" = "Y" ] || [ "$TBD_YN" = "y" ] ; then
-  if [ "$TBDCNV_OK" = "Y" ] ; then
-    echo "Unpacking the tbdcnv package"
-    cd "$SRC"
-    TBDCNV_FULL_NAME=`ls tbdcnv*`
-    echo "TBDCNV_FULL_NAME="$TBDCNV_FULL_NAME
-    tar -xvf "$TBDCNV_FULL_NAME"
-    TBD_CNV_DIR=`ls -dxX tbdcnv* | cut -d' ' -f1`
-    echo "$TBDCNV_FULL_NAME"
-    echo "$TBD_CNV_DIR"
-    cd "$SRC"/"$TBD_CNV_DIR"
-    ./configure
-    make
-    make install
-    mv /usr/local/bin/tbdcnv $TBD_HOME
-    ln -s $TBD_HOME/tbdcnv /usr/local/bin/tbdcnv
-    cd $ID
-    rm -rf "$SRC"/"$TBD_CNV_DIR"
-#    echo "Finished unpacking the tbdcnv package"
-#    echo -n "press any key to continue" ; read
-  fi
+echo "########################################"
+echo "##### Install Step: 1  - install tbdcnv tarball"
+echo "########################################"
+if [ "$TBDCNV_OK" = "Y" ] ; then
+  echo "Unpacking the tbdcnv package"
+  cd "$SRC"
+  #TBDCNV_FULL_NAME=`ls tbdcnv*`
+  TBDCNV_FULL_NAME=$TBDCNV
+  echo "TBDCNV_FULL_NAME="$TBDCNV_FULL_NAME
+  tar -zxvf "$TBDCNV_FULL_NAME"
+  TBD_CNV_DIR=`ls -dxX tbdcnv* | cut -d' ' -f1`
+  echo "$TBDCNV_FULL_NAME"
+  echo "$TBD_CNV_DIR"
+  cd "$SRC"/"$TBD_CNV_DIR"
+  ./configure
+  make
+  make install
+  mv /usr/local/bin/tbdcnv $TBD_HOME
+  ln -s $TBD_HOME/tbdcnv /usr/local/bin/tbdcnv
+  cd $ID
+  rm -rf "$SRC"/"$TBD_CNV_DIR"
+fi
 
 #######################################
 #         install thebridge tarball   #
 #######################################
 
-  if [ "$TBD_OK" = "Y" ] ; then
-    clear
-    echo "Begin thebridge install"
+if [ "$TBD_OK" = "Y" ] ; then
+  echo "Begin thebridge install"
 
-    cd "$SRC"
-    TBD_FULL_NAME=`ls thebridge*`
-    echo "unpacking $TBD_FULL_NAME"
-    tar -zxvf "$SRC"/"$TBD_FULL_NAME"
+  cd "$SRC"
+  #TBD_FULL_NAME=`ls thebridge*`
+  TBD_FULL_NAME=$TBD
+  echo "unpacking $TBD_FULL_NAME"
+  tar -zxvf "$SRC"/"$TBD_FULL_NAME"
 
-    TBD_INIT_DIR=`ls -dxX thebridge* | cut  -f1`
-    echo "TBD_INIT_DIR = $TBD_INIT_DIR"
+  TBD_INIT_DIR=`ls -dxX thebridge* | cut  -f1`
+  echo "TBD_INIT_DIR = $TBD_INIT_DIR"
 
-    # do make and configure stuff
-    cd "$TBD_INIT_DIR"
-    ./configure
-    make
-    cd RedHat
-    ./install
-    mv /usr/local/bin/tbdcmd $TBD_HOME
-    mv /usr/local/libexec/tbd $TBD_HOME
-    rm -f /usr/sbin/tbd
-    ln -s $TBD_HOME/tbdcmd /usr/local/bin/tbdcmd
-    ln -s $TBD_HOME/tbd /usr/sbin/tbd
-    if [ ! -d $TBD_DATA ] ; then
-      mkdir "$TBD_DATA"
-    fi
-    cd $ID
-    cp "$SRC"/"$TBD_INIT_DIR"/tbd.conf $ID/custom/tbd.conf.temp
-    rm -f /usr/local/etc/tbd.conf
-    ln -s $ID/custom/tbd.conf /usr/local/etc/tbd.conf
-    rm -rf "$SRC"/"$TBD_INIT_DIR"
-    echo "thebridge (TBD) installation complete"
-    echo "Further customization can be done by editing the tbd.conf file"
-    echo -n "press any key to continue" ; read
+  # do make and configure stuff
+  cd "$TBD_INIT_DIR"
+  ./configure
+  make
+  cd RedHat
+  ./install
+  mv /usr/local/bin/tbdcmd $TBD_HOME
+  mv /usr/local/libexec/tbd $TBD_HOME
+  rm -f /usr/sbin/tbd
+  ln -s $TBD_HOME/tbdcmd /usr/local/bin/tbdcmd
+  ln -s $TBD_HOME/tbd /usr/sbin/tbd
+  if [ ! -d $TBD_DATA ] ; then
+    mkdir "$TBD_DATA"
   fi
+  cd $ID
+  cp "$SRC"/"$TBD_INIT_DIR"/tbd.conf.sample $ID/custom/tbd.conf.temp
+  rm -f /usr/local/etc/tbd.conf
+  ln -s $ID/custom/tbd.conf /usr/local/etc/tbd.conf
+  rm -rf "$SRC"/"$TBD_INIT_DIR"
 fi
 
 #######################################
 #         install echoirlp tarball    #
 #######################################
-echo "Install Step: 2"
+echo "########################################"
+echo "##### Install Step: 2  - install echoirlp tarball"
+echo "########################################"
 if [ "$ECHO_OK" = "Y" ] ; then
-  clear
   echo -n "Uncompressing EchoIRLP Install Image... "
 
   echo -n "ECHOIRLP BASE INSTALL : "
@@ -511,11 +686,11 @@ fi
 ##########################################
 #         generate tbd.conf              #
 ##########################################
-echo "Install Step: 3"
-if [ "$TBD_YN" = "Y" ] || [ "$TBD_YN" = "y" ] ; then
-  clear
-  echo "Creating $CUSTOM/tbd.conf : "
-  cp -f "$CUSTOM"/tbd.conf.temp "$CUSTOM"/tbd.conf
+echo "########################################"
+echo "##### Install Step: 3  - generate tbd.conf"
+echo "########################################"
+echo "Creating $CUSTOM/tbd.conf : "
+cp -f "$CUSTOM"/tbd.conf.temp "$CUSTOM"/tbd.conf
 
   sed "s/ConferenceCall = W1AW/ConferenceCall = $ECHO_NODE_CALL/" "$CUSTOM"/tbd.conf > "$CUSTOM"/tbd.temp
   mv -f "$CUSTOM"/tbd.temp "$CUSTOM"/tbd.conf
@@ -619,7 +794,6 @@ echo 32
   echo "[ DONE ]"
   rm -f "$CUSTOM"/tbd.conf.temp
   sleep 5
-fi
 
 #######################################
 #        end tbd.conf build           #
@@ -628,7 +802,9 @@ fi
 #######################################
 #        begin userdata.txt           #
 #######################################
-echo "Install Step: 4"
+echo "########################################"
+echo "##### Install Step: 4  - begin userdata.txt"
+echo "########################################"
 echo -n "Creating $ID/custom/userdata.txt :  "
 cat <<-EOT > "$ID"/custom/userdata.txt
 	${ECHO_NODE_CALL}
@@ -645,7 +821,9 @@ echo "[ DONE ]"
 #######################################
 #        begin build environment adds #
 #######################################
-echo "Install Step: 5"
+echo "########################################"
+echo "##### Install Step: 5  - begin build environment adds"
+echo "########################################"
 echo -n "Creating $ID/custom/echo_environment : "
 
 cat <<-EOT > $ENVFILE
@@ -724,8 +902,7 @@ else
    echo "export ECHO_SHARED_CONF=NO" >> $ENVFILE
 fi
 
-if [ "$TBD_YN" = "Y" ] || [ "$TBD_YN" = "y" ] ; then
-   cat <<-EOT >> $ENVFILE
+cat <<-EOT >> $ENVFILE
 	# Variables for use with thebridge
 	export ECHO_TBD=$TBD_HOME
 	export ECHO_TBD_DATA=\$ECHO_TBD/data
@@ -747,19 +924,18 @@ if [ "$TBD_YN" = "Y" ] || [ "$TBD_YN" = "y" ] ; then
 	
 	# Control commands for thebridge
 	export ECHO_TBD_COMMAND="/usr/local/bin/tbdcmd"
-EOT
-fi
-cat <<-EOT >> $ENVFILE
 	
 	export ECHO_ENV=TRUE
 EOT
 echo "[ DONE ]"
 
-if ! `grep /home/EchoIRLP/custom/echo_environment /home/irlp/custom/environment` ; then
+if ! (`grep /home/EchoIRLP/custom/echo_environment /home/irlp/custom/environment` &>/dev/null) ; then
   echo -n "Modifying /home/ielp/custom/environmnet to source the EchoIRLP environment ... "
   cat <<-EOT >> /home/irlp/custom/environment
 
-source /home/EchoIRLP/custom/echo_environment
+if [ -x /home/EchoIRLP/custom/echo_environment ] ; then
+        source /home/EchoIRLP/custom/echo_environment
+fi
 EOT
   echo "[ DONE ]"
 else
@@ -773,7 +949,9 @@ fi
 #######################################
 #       start idle conference setup   #
 #######################################
-echo "Install Step: 6"
+echo "########################################"
+echo "##### Install Step: 6  - start idle conference setup"
+echo "########################################"
 if [ "$ECHO_IDLE_YN" = "y" ] || [ "$ECHO_IDLE_YN" = "Y" ] ; then
   echo "Configuring Echo-Idle Feature..."
   rm -f "$ID"/custom/echo-idle
@@ -814,7 +992,9 @@ fi
 #######################################
 #   Set up -L / -R filter             #
 #######################################
-echo "Install Step: 7"
+echo "########################################"
+echo "##### Install Step: 7  - Set up -L / -R filter"
+echo "########################################"
 if [ "$ECHO_LR" = "Y" ] || [ "$ECHO_LR" = "y" ] ; then
   echo "user" > $ID/custom/type_deny
 else
@@ -828,7 +1008,9 @@ fi
 #######################################
 #    start custom_decode prefix add   #
 #######################################
-echo "Install Step: 8"
+echo "########################################"
+echo "##### Install Step: 8  - start custom_decode prefix add"
+echo "########################################"
 if ! `grep echo_end /home/irlp/custom/custom_decode &>/dev/null` ; then
    echo -n "Modifying /home/irlp/custom/custom_decode ... "
 
@@ -874,22 +1056,34 @@ fi
 #######################################
 # Set custom_decode for status update # 
 #######################################
-echo "Install Step: 9"
-if ! `grep echo_status /home/irlp/custom/custom_on &>/dev/null` ; then
+echo "########################################"
+echo "##### Install Step: 9  - Set custom_decode for status update"
+echo "########################################"
+if ! (`grep echo_status /home/irlp/custom/custom_on &>/dev/null`) ; then
    echo -n "Create/modify /home/irlp/custom/custom_on ... "
-   echo "#" >> /home/irlp/custom/custom_on
-   echo "# Added for EchoIRLP status page update" >> /home/irlp/custom/custom_on
-   echo "\$ECHO_SCRIPT/echo_status" >> /home/irlp/custom/custom_on
+   cat <<-EOT >> /home/irlp/custom/custom_on
+#
+# Added for EchoIRLP status page update
+if [ -x "\$ECHO_SCRIPT/echo_status" ] ; then
+        "\$ECHO_SCRIPT/echo_status"
+fi
+
+EOT
    echo "[ DONE ]"
 else
    echo "NOTE: /home/irlp/custom/custom_on already modified"
 fi
 
-if ! `grep echo_status /home/irlp/custom/custom_off &>/dev/null` ; then
+if ! (`grep echo_status /home/irlp/custom/custom_off &>/dev/null`) ; then
    echo -n "Create/modify /home/irlp/custom/custom_off ... "
-   echo "#" >> /home/irlp/custom/custom_off
-   echo "# Added for EchoIRLP status page update" >> /home/irlp/custom/custom_off
-   echo "\$ECHO_SCRIPT/echo_status" >> /home/irlp/custom/custom_off
+   cat <<-EOT >> /home/irlp/custom/custom_off
+#
+# Added for EchoIRLP status page update
+if [ -x "\$ECHO_SCRIPT/echo_status" ] ; then
+        "\$ECHO_SCRIPT/echo_status"
+fi
+
+EOT
    echo "[ DONE ]"
 else
    echo "NOTE: /home/irlp/custom/custom_off already modified"
@@ -921,30 +1115,32 @@ mv -f /home/irlp/custom/environment.temp /home/irlp/custom/environment
 #######################################
 #    start rc.irlp edit               #
 #######################################
-echo "Install Step: 10"
-if ! `grep "Starting the Bridge" /home/irlp/custom/rc.irlp &>/dev/null` ; then
+echo "########################################"
+echo "##### Install Step: 10 - start rc.irlp edit"
+echo "########################################"
+if ! (`grep "Starting the Bridge" /home/irlp/custom/rc.irlp &>/dev/null`) ; then
   echo -n "Adding TBD startup to /home/irlp/custom/rc.irlp ... "
   echo "" >> /home/irlp/custom/rc.irlp
-  if [ "$TBD_YN" = "Y" ] || [ "$TBD_YN" = "y" ] ; then
-    cat <<-EOT >> /home/irlp/custom/rc.irlp
+  cat <<-EOT >> /home/irlp/custom/rc.irlp
 	
 	echo "Starting the Bridge..."
 	/sbin/service tbd restart
 	sleep 5
 EOT
   echo "[ DONE ]"
-  fi
 else
   echo "NOTE: rc.irlp already contains TBD startup code."
 fi
 
-if ! `grep "Enabling connections to the EchoLink Node" /home/irlp/custom/rc.irlp &>/dev/null` ; then
+if ! (`grep "Enabling connections to the EchoLink Node" /home/irlp/custom/rc.irlp &>/dev/null`) ; then
    echo -n "Adding EchoIRLP startup to /home/irlp/custom/rc.irlp ... "
    cat <<-EOT >> /home/irlp/custom/rc.irlp
-	
+
+if [ -x "\$ECHO_SCRIPT/echo_enable" ] ; then
 	echo -n "Enabling connections to the EchoLink Node..."
 	/bin/su - -c "\$ECHO_SCRIPT/echo_enable" repeater &>/dev/null
 	echo "done!"
+fi
 EOT
    echo "[ DONE ]"
 else
@@ -958,8 +1154,10 @@ fi
 #######################################
 #  Adding rsync entry to custom.crons #
 #######################################
-echo "Install Step: 11"
-if ! `grep echo_update /home/irlp/custom/custom.crons &>/dev/null` ; then
+echo "########################################"
+echo "##### Install Step: 11 - Adding rsync entry to custom.crons"
+echo "########################################"
+if ! (`grep echo_update /home/irlp/custom/custom.crons &>/dev/null`) ; then
   echo -n "Adding rsync entry to custom.crons ... "
   HOUR=$[ $RANDOM % 23 ]
   MIN=$[ $RANDOM % 60 ]
@@ -981,23 +1179,6 @@ fi
 /bin/chown repeater.repeater /home/EchoIRLP/ -R
 /bin/chmod +x $CUSTOM/*
 
-#######################################
-#   Testing for APT GET               #
-#######################################
-if ! (rpm -q apt &>/dev/null) ; then 
-  cat <<-EOT
-	I notice that you do not have APT installed.  APT is recommended as the
-	method of keeping your Linux system current with the latest software
-	releases for critical packages.
-EOT
-  echo -n "Should I install APT for you now? (y/N)"
-  read APT
-  if [ "$APT" = "Y" ] || [ "$APT" = "y" ] ; then
-    rpm -Uvh ftp://redhat.irlp.net/pub/irlp/apt/apt-install*.rpm
-    /usr/src/apt-get/apt_install.sh
-  fi
-fi
-
 cat <<-EOT
 	########################################################################
 	  ALL DONE!!!
@@ -1009,4 +1190,6 @@ cat <<-EOT
 	                                 ENJOY!
 	########################################################################
 EOT
+
+###############################
 
