@@ -19,6 +19,7 @@
 # V1.10: 18-Sep-06 WD5M: Modified method to find tbd files.
 #			Added some -x tests to custom file edits.
 # 21-Oct-06 WD5M: Modified to install files from googlecode.com.
+# 17-Feb-07 WD5M: Increased ECHOCALL max length to 10
 ########################################################################
 #
 # MUST BE RUN AS ROOT
@@ -428,10 +429,10 @@ done
 
 echo ""
 ECHO_CALL=""
-while [ ${#ECHO_CALL} -lt 4 ] || [ ${#ECHO_CALL} -gt 8 ]; do
+while [ ${#ECHO_CALL} -lt 4 ] || [ ${#ECHO_CALL} -gt 10 ]; do
   echo -n "Enter the Repeater (-R) or Link (-L) callsign, with -L or -R suffix (e.g. w0abc-r): " ; read ECHO_CALL
-  if [ ${#ECHO_CALL} -lt 4 ] || [ ${#ECHO_CALL} -gt 8 ] ; then
-    echo "ERROR: The callsign must be between 4 and 8 characters"
+  if [ ${#ECHO_CALL} -lt 4 ] || [ ${#ECHO_CALL} -gt 10 ] ; then
+    echo "ERROR: The callsign must be between 4 and 10 characters"
   fi
 done
 
