@@ -20,6 +20,7 @@
 #			Added some -x tests to custom file edits.
 # 21-Oct-06 WD5M: Modified to install files from googlecode.com.
 # 17-Feb-07 WD5M: Increased ECHOCALL max length to 10
+# 26-Feb-07 WD5M: Added checks for CentOS_4.4
 ########################################################################
 #
 # MUST BE RUN AS ROOT
@@ -85,6 +86,12 @@ EOT
 R=""
 if [ -f /etc/redhat-release ]; then
   R=`cat /etc/redhat-release | cut -d' ' -f5`
+
+  # Detects CentOS systems
+  if [ -z $R ] ; then
+  R="CentOS_`cat /etc/redhat-release | cut -d' ' -f3`"
+  fi
+
 fi
 
 if [ -f /etc/fedora-release ]; then
@@ -94,10 +101,10 @@ fi
 if [ "$R" = "7.3" ] || [ "$R" = "9" ] ; then
       echo "The script has detected you are running RedHat $R."
 
-elif [ "$R" = "fc3" ] ; then
+elif [ "$R" = "fc3" ] || [ "$R" = "fc5" ] ; then
       echo "The script has detected you are running Fedora $R."
-elif [ "$R" = "fc5" ] ; then
-      echo "The script has detected you are running Fedora $R."
+elif [ "$R" = "CentOS_4.4" ] ; then
+      echo "The script has detected you are running $R."
 else
       echo "The script could not detect an IRLP supported version of Linux." 
       echo "If you are not running an IRLP supported distribution, please read every"
@@ -270,6 +277,8 @@ elif [ "$R" = "fc3" ] ; then
   echo "FC3 already has yum installed"
 elif [ "$R" = "fc5" ] ; then
   echo "FC5 already has yum installed"
+elif [ "$R" = "CentOS_4.4" ] ; then
+  echo "$R already has yum installed"
 fi
 #####
 ##### Check for/Install SED
