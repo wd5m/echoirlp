@@ -1,0 +1,40 @@
+#Enabling EchoLink on IRLP reflectors.
+
+= Introduction =
+
+It is possible to create a conference server that supports both IRLP and EchoLink.  This requires a standard IRLP reflector to be installed, before EchoLink capability can be added.
+
+
+= Details =
+
+The integration of IRLP and EchoLink into a single conference provides a high performance and transparent bridging between all connected systems.  IRLP nodes will receive all traffic from the conference and hear all other stations, just like on a standard reflector channel.  EchoLink nodes see a normal conference, except that the IRLP nodes appear in the connected station list as stnXXXX, where XXXX is the IRLP node number.  IRLP nodes can also be muted by EchoLink sysops.
+
+= Requirements =
+
+The following requirements and installation details are provided for informational purposes.  Reflector owners wishing to run an integrated conference can ask about it on the EchoIRLP MailingList .
+
+To install an integrated conference, you need the following (as of March 2007):
+  * IRLP reflector with available GSM channel.
+  * No other EchoLink services (conference, proxy, client) on the reflector machine.
+  * A copy of [thebridge] 0.82 or later.
+  * EchoLink integration scripts (to be supplied).
+  * Template tbd.conf (to be supplied).
+  * root access to the IRLP reflector.
+  * Validated EchoLink conference ID.
+
+= Installation =
+
+The installation is performed as follows:
+
+Firstly, [thebridge] is installed as per the instructions contained in the archive.  Once installed, the integrated conference version of tbd.conf is copied to /usr/local/etc/tbd.conf.  The tbd.conf file needs to be edited as follows:
+
+  * Replace ConferenceCALL and ConferencePASS with the callsign and password for your conference.
+  * Change SF_Port and SF_ReplyPort to the value of (2074 + 2 x reflector channel)
+
+To finish the installation of [thebridge], install the relevalt startup scripts for your Linux distribution (refer to the README file).
+
+Next, the scripts in /home/reflect/scripts need to be modified.  First, the startreflect script needs to be backed up (in case you wish to revert back to a standard reflector).  Then copy the supplied scripts into /home/reflect.  The new startreflect script needs to be edited so that the line that reads *ECHOLINK=n* has n = to the channel that you are converting to integrated operation.  While you're at it, the new scripts need to be owned and executable by reflect.
+
+Now, the integrated conference should be working.  The easiest way to get it running properly is to simply reboot the machine, though you can also just kill the sfreflect process that is using the integrated channel and start tbd.
+
+That is how the integrated conferences are installed.  A rather manual process, but they are installed relatively rarely.
