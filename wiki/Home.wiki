@@ -1,0 +1,16 @@
+#EchoIRLP Wiki Home
+
+= Introduction =
+
+Welcome to the EchoIRLP Wiki.  For questions concerning EchoIRLP, please consult the links below.
+
+
+= Links =
+
+  * EchoIRLP home page - http://www.echoirlp.net
+  * EchoIRLP mailing list - http://groups.yahoo.com/group/EchoIRLP
+  * EchoIRLP FAQ - [FAQ]
+  * Installing EchoIRLP - [Installation]
+  * Linked IRLP/EchoLink conferences - [LinkedConferences]
+  * Integrated IRLP/EchoLink conferences - [IntegratedConferences]
+  * Guidelines for IRLP/EchoLink integration - http://vkradio.com/irlp-echolink.html
