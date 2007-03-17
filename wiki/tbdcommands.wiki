@@ -23,11 +23,11 @@ _Optional User commands not available on all conferences_
   * .lurk `[`<callsign> | disable | lurk enable]
   * .message `[`message text]
   * .monitor `[`disable] <callsign>
-  * .mute  `[. | <callsign> ... | -r | -c | -u | -s | -t | -a | -e]
+  * .mute  `[. | <callsign> ... | -r | -c | -u | -s | -t | -a | -e] [tbd cmd mute]
   * .pausetime  .pausetime <time constant>
   * .play4 `[`-f] `[`-i] <filename> `[`displayed name]
   * .sysop <password>
-  * .unmute `[` <callsign> ... | -r | -c | -u | -s | -t | -a | -e]
+  * .unmute `[` <callsign> ... | -r | -c | -u | -s | -t | -a | -e] [tbd cmd mute]
   * .users
 
 = Administrator Commands =
