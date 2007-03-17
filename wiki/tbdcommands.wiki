@@ -1,32 +1,33 @@
 = User commands =
 
   * .help and .?
-  * .list  (not available on all conferences)
-  * .lurk and .delurk (not available on all conferences)
-  * .play <bulletin #>, .stop   (not available on all conferences)
-  * .showip
   * .stats
-  * .test  (not available on all conferences)
+  * .stop
   * .uptime
   * .version
+_Optional User commands not available on all conferences_
+  * .delurk
+  * .list
+  * .lurk
+  * .play <bulletin #>
+  * .test
 
 = Sysop Commands =
 
   * .admins
   * .belchfilter <time constant>
-  * .busy [on | off | status]
+  * .busy `[`on | off | status]
   * .connect <station> .disconnect <station>  
+  * .delurk <callsign>
   * .disconnect ALL
-  * .lurk disable .lurk enable .lurk <callsign> .delurk <callsign>
-  * .message [message text]
-  * .monitor [disable] <callsign>
-  * .mute  .mute .  .mute <callsign> [<callsign> ...]  
-  * .mute -r .mute -c .mute -u .mute -s .mute -t .mute -a .mute -e
+  * .lurk `[`<callsign> | disable | lurk enable]
+  * .message `[`message text]
+  * .monitor `[`disable] <callsign>
+  * .mute  `[. | <callsign> ... | -r | -c | -u | -s | -t | -a | -e]
   * .pausetime  .pausetime <time constant>
-  * .play4 [-f] [-i] <filename> [displayed name]
+  * .play4 `[`-f] `[`-i] <filename> `[`displayed name]
   * .sysop <password>
-  * .unmute <callsign> [<callsign...]
-  * .unmute [-r | -c | -u | -s | -t | -a | -e]
+  * .unmute `[` <callsign> ... | -r | -c | -u | -s | -t | -a | -e]
   * .users
 
 = Administrator Commands =
@@ -35,21 +36,30 @@
   * .allow add <callsign>
   * .allow delete <callsign>  
   * .allow list
-  * .ban add <callsign> [IP Address/HostName]
+  * .ban add <callsign> `[`IP Address/HostName]
   * .ban delete <callsign>
   * .ban list
   * .dns list
   * .dns refresh
-  * .info [Info field text]
+  * .info `[`Info field text]
   * .kick <callsign>
   * .list add <filename> <description>
   * .quit
   * .quote <command line>
-  * .record <filename> .record stop
+  * .record `[`<filename> | stop]
   * .refresh
   * .rehash
+  * .showip
   * .shutdown
 
 = Scripting Commands =
 
-  * .chat [on | off]
+  * .chat `[`on | off]
+
+
+
+
+
+
+
+
