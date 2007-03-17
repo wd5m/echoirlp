@@ -14,3 +14,4 @@ Welcome to the EchoIRLP Wiki.  For questions concerning EchoIRLP, please consult
   * Linked IRLP/EchoLink conferences - [LinkedConferences]
   * Integrated IRLP/EchoLink conferences - [IntegratedConferences]
   * Guidelines for IRLP/EchoLink integration - http://vkradio.com/irlp-echolink.html
+  * theBridge (tbd) - [theBridge]
