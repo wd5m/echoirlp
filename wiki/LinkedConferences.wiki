@@ -1,0 +1,40 @@
+#Linking a Remote EchoLink Conference to an IRLP Reflector.
+
+= Introduction =
+
+A standalone EchoLink conference can be linked to a channel of a standard IRLP reflector by means of a high quality digital link.  This page describes how it is done.
+
+
+= Details =
+
+While an IntegratedConference represents the most sophisticated way to link a group of IRLP and EchoLink nodes, sometimes building one isn't possible or desired.  Linking a standalone EchoLink conference to an unmodified IRLP reflector is technically simpler and more versatile.  However, you lost the ability to see all stations and manage them in one interface.
+
+= Requirements =
+
+The following requirements and installation details are provided for informational purposes.  The EchoLink conference owner and the IRLP reflector owner need to work together to make it work.
+
+To link an EchoLink conference to an IRLP reflector, you need the following (as of March 2007):
+  * IRLP reflector with available GSM channel.
+  * Reflector administrator access (reflect or root user).
+  * A copy of [thebridge] 0.81 or later.
+  * Static IP address for the EchoLink node (IRLP will be static)
+  * Validated EchoLink conference ID (of new or existing conference).
+
+= Installation =
+
+The installation is performed as follows:
+
+Firstly, [thebridge] is installed as per the instructions contained in the archive.  Once installed, copy the sample tbd.conf.sample to /usr/local/etc/tbd.conf
+
+  * Replace ConferenceCALL and ConferencePASS with the callsign and password for your conference.
+  * Change SF_Port and SF_ReplyPort to the value of (2074 + 2 x reflector channel)
+  * For automatic connection to the IRLP reflector on startup, edit the StartupCmd line to read something like StartupCmd = connect -s w.x.y.z ref9XXX IRLP where w.x.y.z is the IP of the reflector, and 9XXX is the node number of the reflector channel.
+  * Check README and tweak other variables as desired.
+
+To finish the installation of [thebridge], install the relevant startup scripts for your Linux distribution (refer to the README file).
+
+On the IRLP side, the reflector owner needs to allow the EchoLink conference to access the reflector.  This is done by creating a file in /home/reflect/channels/allow_ip containing the IP address of the EchoLink conference.  The file can be named anything, and the filename will be logged as the node name in the activity log.  This file should be owned by reflector.reflector.
+
+Now the linked systems should connect, and traffic on IRLP should be heard on EchoLink and vice-versa.  One way links (useful for linking in listen only conferences) can be achieved by using the .mute command from EchoLink.
+
+Note that ADPCM reflector channels can't currently be used (a solution for the future is being looked into and will be posted when working).
