@@ -21,6 +21,7 @@
 # 21-Oct-06 WD5M: Modified to install files from googlecode.com.
 # 17-Feb-07 WD5M: Increased ECHOCALL max length to 10
 # 26-Feb-07 WD5M: Added checks for CentOS_4.4
+# 03-Jun-07 WD5M: Added checks for CentOS_4.5
 ########################################################################
 #
 # MUST BE RUN AS ROOT
@@ -103,7 +104,7 @@ if [ "$R" = "7.3" ] || [ "$R" = "9" ] ; then
 
 elif [ "$R" = "fc3" ] || [ "$R" = "fc5" ] ; then
       echo "The script has detected you are running Fedora $R."
-elif [ "$R" = "CentOS_4.4" ] ; then
+elif [ "$R" = "CentOS_4.4" ] || [ "$R" = "CentOS_4.5" ] ; then
       echo "The script has detected you are running $R."
 else
       echo "The script could not detect an IRLP supported version of Linux." 
@@ -277,7 +278,7 @@ elif [ "$R" = "fc3" ] ; then
   echo "FC3 already has yum installed"
 elif [ "$R" = "fc5" ] ; then
   echo "FC5 already has yum installed"
-elif [ "$R" = "CentOS_4.4" ] ; then
+elif [ "$R" = "CentOS_4.4" ] || [ "$R" = "CentOS_4.5" ] ; then
   echo "$R already has yum installed"
 fi
 #####
