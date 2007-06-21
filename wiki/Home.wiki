@@ -9,7 +9,7 @@ Welcome to the EchoIRLP Wiki.  For questions concerning EchoIRLP, please consult
 
   * EchoIRLP home page - http://www.echoirlp.net
   * EchoIRLP mailing list - http://groups.yahoo.com/group/EchoIRLP
-  * EchoIRLP Web Forum - http://forums.vkradio.com - Forum is linked to the Yahoo Group
+  * EchoIRLP Web Forum - http://forum.vkradio.com - Forum is linked to the Yahoo Group
   * EchoIRLP FAQ - [FAQ]
   * Installing EchoIRLP - [Installation]
   * Linked IRLP/EchoLink conferences - [LinkedConferences]
