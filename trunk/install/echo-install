@@ -24,6 +24,7 @@
 # 03-Jun-07 WD5M: Added checks for CentOS_4.5
 # 13-Jun-07 WB6YMH: Copy thebridge's documentation files before deleting source.
 # 18-Jun-07 WD5M: Re-created Skip's change due to corrupt file.
+# 21-Aug-07 WD5M: Updated to use thebridge-0.85
 ########################################################################
 #
 # MUST BE RUN AS ROOT
@@ -45,7 +46,7 @@ ID=/home/EchoIRLP
 CUSTOM=$ID/custom
 ENVFILE=$CUSTOM/echo_environment
 SRC=/usr/src
-TBD=thebridge-0.83.tgz
+TBD=thebridge-0.85.tgz
 TBDCNV=tbdcnv-0.03.tgz
 
 clear
