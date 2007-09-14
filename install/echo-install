@@ -954,7 +954,7 @@ EOT
 echo "[ DONE ]"
 
 if ! (`grep /home/EchoIRLP/custom/echo_environment /home/irlp/custom/environment` &>/dev/null) ; then
-  echo -n "Modifying /home/ielp/custom/environmnet to source the EchoIRLP environment ... "
+  echo -n "Modifying /home/irlp/custom/environmnet to source the EchoIRLP environment ... "
   cat <<-EOT >> /home/irlp/custom/environment
 
 if [ -x /home/EchoIRLP/custom/echo_environment ] ; then
