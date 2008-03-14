@@ -27,6 +27,7 @@
 # 21-Aug-07 WD5M: Updated to use thebridge-0.85
 # 18-Dec-07 WD5M: Added checks for CentOS_4.6
 # 13-Mar-08 WD5M: Updated to use thebridge-0.95. Stop running rsync during install.
+# 14-Mar-08 WD5M: Updated to use thebridge-0.96.
 ########################################################################
 #
 # MUST BE RUN AS ROOT
@@ -48,7 +49,7 @@ ID=/home/EchoIRLP
 CUSTOM=$ID/custom
 ENVFILE=$CUSTOM/echo_environment
 SRC=/usr/src
-TBD=thebridge-0.95.tgz
+TBD=thebridge-0.96.tgz
 TBDCNV=tbdcnv-0.03.tgz
 
 clear
