@@ -28,6 +28,7 @@
 # 18-Dec-07 WD5M: Added checks for CentOS_4.6
 # 13-Mar-08 WD5M: Updated to use thebridge-0.95. Stop running rsync during install.
 # 14-Mar-08 WD5M: Updated to use thebridge-0.96.
+# 11-Oct-08 WD5M: Added checks for CentOS_4.7
 ########################################################################
 #
 # MUST BE RUN AS ROOT
@@ -110,7 +111,7 @@ if [ "$R" = "7.3" ] || [ "$R" = "9" ] ; then
 
 elif [ "$R" = "fc3" ] || [ "$R" = "fc5" ] ; then
       echo "The script has detected you are running Fedora $R."
-elif [ "$R" = "CentOS_4.6" ] || [ "$R" = "CentOS_4.4" ] || [ "$R" = "CentOS_4.5" ] ; then
+elif [ "$R" = "CentOS_4.7" ] || [ "$R" = "CentOS_4.6" ] || [ "$R" = "CentOS_4.4" ] || [ "$R" = "CentOS_4.5" ] ; then
       echo "The script has detected you are running $R."
 else
       echo "The script could not detect an IRLP supported version of Linux." 
