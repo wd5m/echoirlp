@@ -29,7 +29,7 @@
 # 13-Mar-08 WD5M: Updated to use thebridge-0.95. Stop running rsync during install.
 # 14-Mar-08 WD5M: Updated to use thebridge-0.96.
 # 11-Oct-08 WD5M: Added checks for CentOS_4.7
-# 14-Mar-08 WD5M: Updated to use thebridge-1.06.
+# 11-Oct-08 WD5M: Updated to use thebridge-1.06.
 ########################################################################
 #
 # MUST BE RUN AS ROOT
