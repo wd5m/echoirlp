@@ -31,6 +31,7 @@
 # 11-Oct-08 WD5M: Added checks for CentOS_4.7
 # 11-Oct-08 WD5M: Updated to use thebridge-1.06.
 # 11-Oct-08 WD5M: change to where tbd binaries are placed and linked.(beta)
+# 16-Dec-08 WD5M: Use "if -x test on /home/EchoIRLP/scripts/echo_end" in custom_decode for 73.
 ########################################################################
 #
 # MUST BE RUN AS ROOT
@@ -1071,7 +1072,9 @@ if ! `grep echo_end /home/irlp/custom/custom_decode &>/dev/null` ; then
 
    # Add the "73" decode line to call EchoIRLP end script if it is missing
    if ! (grep '"$1" = "73"' /home/irlp/custom/custom_decode) ; then 
-     echo 'if [ "$1" = "73" ] ; then "$ECHO_SCRIPT"/echo_end ; exit 1 ; fi' >> /home/irlp/custom/custom_decode 
+     echo 'if [ -x "\$ECHO_SCRIPT/echo_end" ] ; then' >> /home/irlp/custom/custom_decode
+     echo '  if [ "$1" = "73" ] ; then "$ECHO_SCRIPT"/echo_end ; exit 1 ; fi' >> /home/irlp/custom/custom_decode 
+     echo 'fi' >> /home/irlp/custom/custom_decode
    fi
 
    echo "" >> /home/irlp/custom/custom_decode
