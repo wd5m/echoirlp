@@ -30,6 +30,7 @@
 # 14-Mar-08 WD5M: Updated to use thebridge-0.96.
 # 11-Oct-08 WD5M: Added checks for CentOS_4.7
 # 11-Oct-08 WD5M: Updated to use thebridge-1.06.
+# 18-Jan-09 WD5M: Corrected grep test in IRLP environment modification code
 ########################################################################
 #
 # MUST BE RUN AS ROOT
@@ -958,7 +959,7 @@ cat <<-EOT >> $ENVFILE
 EOT
 echo "[ DONE ]"
 
-if ! (`grep /home/EchoIRLP/custom/echo_environment /home/irlp/custom/environment` &>/dev/null) ; then
+if ! (`grep /home/EchoIRLP/custom/echo_environment /home/irlp/custom/environment &>/dev/null`) ; then
   echo -n "Modifying /home/irlp/custom/environmnet to source the EchoIRLP environment ... "
   cat <<-EOT >> /home/irlp/custom/environment
 
