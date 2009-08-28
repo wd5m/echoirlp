@@ -30,8 +30,12 @@
 # 14-Mar-08 WD5M: Updated to use thebridge-0.96.
 # 11-Oct-08 WD5M: Added checks for CentOS_4.7
 # 11-Oct-08 WD5M: Updated to use thebridge-1.06.
+# 11-Oct-08 WD5M: change to where tbd binaries are placed and linked.(beta)
+# 16-Dec-08 WD5M: Use "if -x test on /home/EchoIRLP/scripts/echo_end" in custom_decode for 73.
 # 18-Jan-09 WD5M: Corrected grep test in IRLP environment modification code
 # 27-Aug-09 WD5M: Modified check for CentOS. Any CentOS version is accepted now.
+# 27-Aug-09 WD5M: Replaced echo-install with beta version that had been under test.
+#                 This version leaves TBD installed in default locations for easier upgrades.
 ########################################################################
 #
 # MUST BE RUN AS ROOT
@@ -625,9 +629,12 @@ if [ "$TBDCNV_OK" = "Y" ] ; then
   cd "$SRC"/"$TBD_CNV_DIR"
   ./configure
   make
+# remove old binaries from previous install script method.
+  rm -f $TBD_HOME/tbdcnv
+  rm -f /usr/local/bin/tbdcnv
   make install
-  mv /usr/local/bin/tbdcnv $TBD_HOME
-  ln -s $TBD_HOME/tbdcnv /usr/local/bin/tbdcnv
+# link binary to EchoIRLP tbd directory
+  ln -s /usr/local/bin/tbdcnv $TBD_HOME/tbdcnv
   cd $ID
   rm -rf "$SRC"/"$TBD_CNV_DIR"
 fi
@@ -661,14 +668,16 @@ if [ "$TBD_OK" = "Y" ] ; then
   mv ChangeLog $TBD_HOME/doc
   mv SCRIPTING.txt $TBD_HOME/doc
   mv ChangeLog $TBD_HOME/doc
-
+# remove old binaries from previous install script method.
+  rm -f $TBD_HOME/tbdcmd
+  rm -f /usr/local/bin/tbdcmd
+  rm -f $TBD_HOME/tbd
+  rm -f /usr/local/libexec/tbd
+  rm -f /usr/sbin/tbd
   cd RedHat
   ./install
-  mv /usr/local/bin/tbdcmd $TBD_HOME
-  mv /usr/local/libexec/tbd $TBD_HOME
-  rm -f /usr/sbin/tbd
-  ln -s $TBD_HOME/tbdcmd /usr/local/bin/tbdcmd
-  ln -s $TBD_HOME/tbd /usr/sbin/tbd
+  ln -s /usr/local/bin/tbdcmd $TBD_HOME/tbdcmd
+  ln -s /usr/local/libexec/tbd $TBD_HOME/tbd
   if [ ! -d $TBD_DATA ] ; then
     mkdir "$TBD_DATA"
   fi
@@ -1068,7 +1077,9 @@ if ! `grep echo_end /home/irlp/custom/custom_decode &>/dev/null` ; then
 
    # Add the "73" decode line to call EchoIRLP end script if it is missing
    if ! (grep '"$1" = "73"' /home/irlp/custom/custom_decode) ; then 
-     echo 'if [ "$1" = "73" ] ; then "$ECHO_SCRIPT"/echo_end ; exit 1 ; fi' >> /home/irlp/custom/custom_decode 
+     echo 'if [ -x "\$ECHO_SCRIPT/echo_end" ] ; then' >> /home/irlp/custom/custom_decode
+     echo '  if [ "$1" = "73" ] ; then "$ECHO_SCRIPT"/echo_end ; exit 1 ; fi' >> /home/irlp/custom/custom_decode 
+     echo 'fi' >> /home/irlp/custom/custom_decode
    fi
 
    echo "" >> /home/irlp/custom/custom_decode
