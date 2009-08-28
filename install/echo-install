@@ -31,6 +31,7 @@
 # 11-Oct-08 WD5M: Added checks for CentOS_4.7
 # 11-Oct-08 WD5M: Updated to use thebridge-1.06.
 # 18-Jan-09 WD5M: Corrected grep test in IRLP environment modification code
+# 27-Aug-09 WD5M: Modified check for CentOS. Any CentOS version is accepted now.
 ########################################################################
 #
 # MUST BE RUN AS ROOT
@@ -99,7 +100,8 @@ if [ -f /etc/redhat-release ]; then
 
   # Detects CentOS systems
   if [ -z $R ] ; then
-  R="CentOS_`cat /etc/redhat-release | cut -d' ' -f3`"
+#  R="CentOS_`cat /etc/redhat-release | cut -d' ' -f3`"
+  R="CentOS"
   fi
 
 fi
@@ -113,7 +115,7 @@ if [ "$R" = "7.3" ] || [ "$R" = "9" ] ; then
 
 elif [ "$R" = "fc3" ] || [ "$R" = "fc5" ] ; then
       echo "The script has detected you are running Fedora $R."
-elif [ "$R" = "CentOS_4.7" ] || [ "$R" = "CentOS_4.6" ] || [ "$R" = "CentOS_4.4" ] || [ "$R" = "CentOS_4.5" ] ; then
+elif [ "$R" = "CentOS" ] ; then
       echo "The script has detected you are running $R."
 else
       echo "The script could not detect an IRLP supported version of Linux." 
@@ -287,7 +289,7 @@ elif [ "$R" = "fc3" ] ; then
   echo "FC3 already has yum installed"
 elif [ "$R" = "fc5" ] ; then
   echo "FC5 already has yum installed"
-elif [ "$R" = "CentOS_4.4" ] || [ "$R" = "CentOS_4.5" ] ; then
+elif [ "$R" = "CentOS" ] ; then
   echo "$R already has yum installed"
 fi
 #####
