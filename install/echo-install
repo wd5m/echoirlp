@@ -1077,7 +1077,7 @@ if ! `grep echo_end /home/irlp/custom/custom_decode &>/dev/null` ; then
 
    # Add the "73" decode line to call EchoIRLP end script if it is missing
    if ! (grep '"$1" = "73"' /home/irlp/custom/custom_decode) ; then 
-     echo 'if [ -x "\$ECHO_SCRIPT/echo_end" ] ; then' >> /home/irlp/custom/custom_decode
+     echo 'if [ -x "$ECHO_SCRIPT/echo_end" ] ; then' >> /home/irlp/custom/custom_decode
      echo '  if [ "$1" = "73" ] ; then "$ECHO_SCRIPT"/echo_end ; exit 1 ; fi' >> /home/irlp/custom/custom_decode 
      echo 'fi' >> /home/irlp/custom/custom_decode
    fi
