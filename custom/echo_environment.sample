@@ -1,0 +1,113 @@
+# Sample echo_environment file modified for custom scripts from WD5M
+#
+# This file is the EchoLinux ENVIRONMENT file. It is designed to set a list of global varaibles
+# which are used by the software.
+#
+# These environment variables could have set in the IRLP EVIRONMENT file. Our concept
+# was to keep the two systems as seperate as possible to allow for easy removal of EchoLinux.
+# Please make sure that you read and understand the installation instrcutions.
+
+###
+# start of new settings from WD5M scripts.
+###
+
+# <ECHO_DENY_MSG>
+# An optional text message to append to connection denied messages sent
+# to incoming EchoLink callers.  This is appended to the standard messages
+# sent to denied incoming connections.
+export ECHO_DENY_MSG="To request access to this node, send your reason, node number and call sign via email to <EchoLink@wd5m.net>."
+
+# <ECHO_CONNECT_TONE>
+# Argument string for the tone program to play upon connecting.
+# example: export ECHO_CONNECT_TONE="100 200 0 800 0 200 0 1500 0"
+#export ECHO_CONNECT_TONE="100 200 0 800 0 200 0 1500 0"
+export ECHO_CONNECT_TONE="100 100 0 330 0 100 0 500 0 100 0 660 0"
+
+# <ECHO_DISCONNECT_TONE>
+# Argument string for the tone program to play upon disconnecting.
+# example: export ECHO_DISCONNECT_TONE="100 200 0 1500 0 200 0 800 0"
+#export ECHO_DISCONNECT_TONE="100 200 0 1500 0 200 0 800 0"
+#export ECHO_DISCONNECT_TONE="100 100 0 330 0 100 0 500 0 100 0 660 0"
+export ECHO_DISCONNECT_TONE="100 100 0 660 0 100 0 500 0 100 0 330 0"
+
+# <ECHO_INBOUND_TONE>
+# Optional, overrides ECHO_CONNECT_TONE for inbound connection.
+# Argument string for the tone program to play upon disconnecting.
+# example: export ECHO_DISCONNECT_TONE="100 200 0 1500 0 200 0 800 0"
+#export ECHO_INBOUND_TONE="100 200 0 800 0 200 0 1500 0"
+export ECHO_INBOUND_TONE="100 100 0 330 0 100 0 500 0 100 0 660 0"
+
+# <REGEXP>
+# Value of YES enables regular expresions in the ACL node_deny and
+# node_allow files.
+export ECHO_REGEXP=YES
+
+###
+# end of new settings from WD5M scripts.
+###
+
+# <My Call>
+# This variable contains the callsign of the local EchoIRLP system as known
+# by the EchoLink network
+export ECHO_MYCALL=VK2XYZ-L
+
+# <Say Node Number>
+# This variable determines if the node number is spoken after the standard 
+# Connect to EchoLink message is played. NO, YES, NONE or CALLSIGN
+# new settings from WD5M scripts.
+export ECHO_SAY_NODE=CALLSIGN
+export ECHO_SAY_NODE_INBOUND=NONE
+
+# <Use EchoLink Servers>
+# The following variable determines if you will use the EchoLink Status servers or
+# a hosts file for IP address resolution.  Please make sure to read the installation
+# instructions for complete details on the use of host files and EchoLink servers.  
+export ECHO_SERVERS=NO
+
+# <Seclect EchoLink Server>
+# Set this variable for the EchoLink Status server desired
+# This is not used if you selected ECHO_HOSTS=YES
+# Uncomment the desired server
+#export ECHO_SERVER=oceania.echolink.org
+export ECHO_SERVER=naeast.echolink.org
+#export ECHO_SERVER=nasouth.echolink.org
+#export ECHO_SERVER=server.echolink.org
+#export ECHO_SERVER=backup.echolink.org
+
+
+###########################################################
+#  S T O P 
+# You should not change any of the varibles below this point
+#
+export ECHOLINUX=/home/EchoIRLP
+export ECHOIRLP=/home/EchoIRLP
+export ECHO_BIN=$ECHOLINUX/bin
+export ECHO_SCRIPT=$ECHOLINUX/scripts
+export ECHO_AUDIO=$ECHOLINUX/audio
+export ECHO_NODE_DESC="$ECHO_MYCALL EchoIRLP"
+export ECHO_CUSTOM=$ECHOLINUX/custom
+
+# Set this to YES to use IRLP protocol for known shared conferences.
+export ECHO_SHARED_CONF=NO
+
+# Variables for use with thebridge
+export ECHO_TBD=/home/EchoIRLP/tbd
+export ECHO_TBD_DATA=$ECHO_TBD/data
+export ECHO_TBD_ENABLE=YES
+
+# Host thebridge gateway is running on (normally 127.0.0.1)
+export ECHO_TBD_HOST=127.0.0.1
+
+# Port thebridge listens on for IRLP connection
+export ECHO_TBD_LISTEN=2174
+
+# port thebridge sends voice data to (ispeaker needs to listen on this one)
+export ECHO_TBD_SEND=2074
+
+# Password for local gateway (Don't rely on this, use ipchains/tables as well)
+export ECHO_TBD_PASSWD="password"
+
+# Control commands for thebridge
+export ECHO_TBD_COMMAND="/usr/local/bin/tbdcmd"
+
+export ECHO_ENV=TRUE
