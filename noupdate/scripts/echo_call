@@ -1,0 +1,362 @@
+#!/bin/bash
+###########################################################
+#                                                         #                  
+#  Released under the GNU Public License                  #                  
+#                                                         #                  
+#  Script :  echo_call                                    #
+#  Author :  Marcus Xenakis WA2DCI, Tony Langdon VK3JED   #
+#  Version:  .20 Beta                                     #
+#  Date   :  June 15 2003                                 #
+#  About  :  A script to connect an IRLP node to an       # 
+#            EchoLink node.  Requires                     #
+#            "thebridge" software                         #
+#            This is a modified version of the            #
+#            connect_to_conference  script written by     #
+#            Tony Langdon VK3JED and Marcus Xenakis       #
+#            WA2DCI                                       #
+# Modified:  3/13/03 To check for active connections      #
+#            3/15/03 To check for timed-out connections   #
+#            3/15/03 To overwrite stnxxx files            #
+#            3/20/03 to use a forked process stats & log  #
+#            3/30/03 use echo_wavgen                      #
+#            June 15 2003 Support for EchoLink native     #
+#            June 15 2003 International date format here! #
+#                                                         #
+###########################################################
+
+[ -z "$ECHO_SCRIPT" ] && ECHO_SCRIPT=/home/EchoIRLP/scripts
+   source $ECHO_SCRIPT/echo_common
+
+if [ "$#" = "0" ] ; then
+  echo "Syntax: echo_call STATIONID [notimeout]"
+  exit 1
+fi
+
+# Checks if called node contains invalid digit (S,P,A,B,C,D)
+if echo $1 | grep "[S,P,A,B,C,D]" > /dev/null ; then
+  #echo "The command contains a bad digit (S,P,A,B,C,D)" $1
+  log "The command contains a bad digit (S,P,A,B,C,D) $1"
+  exit 0
+fi
+
+# Checks to see if thebridge is installed and enabled
+if [ "$ECHO_TBD_ENABLE" != "YES" ] ; then
+  log "tbd not available, switching to shared conference only mode."
+  "$ECHO_SCRIPT"/echo_call_conf "$1" "$2" "$3" "$4"
+else
+  pid=`/sbin/pidof -o $$ -o $PPID -o %PPID -x tbd`
+  if [ "$pid" = "" ] ; then
+    log "tbd is not running..."
+    $SCRIPT/wavplay error contactirlp 9 9
+    exit 1
+  fi
+fi
+
+# Exits if node is not enabled
+if [ ! -f "$LOCAL"/enable -o ! -f "$LOCAL"/echo_enable ] ; then 
+  log "The node is not enabled"
+  exit 0
+fi
+
+# Checks to make sure that the audio devices are readable by the repeater user
+if [ ! -w /dev/audio ] || [ ! -w /dev/mixer ] || [ ! -w /dev/dsp ] ; then
+  log "AUDIO DEVICES NOT SET CORRECTLY"
+  $SCRIPT/failure audiodev
+  $SCRIPT/disable
+  exit 1
+fi
+
+# Clean-up in case we timed-out
+if [ ! -f "$LOCAL"/active -a -f "$LOCAL"/echo_active ] ; then 
+  rm -f "$LOCAL"/echo_active &>/dev/null
+  rm -f "$LOCAL"/echo_call &>/dev/null
+  rm -f "$LOCAL"/node_id &>/dev/null
+  rm -f "$LOCAL"/echo_outcall_ok &>/dev/null
+  rm -f "$LOCAL"/echoirlp &>/dev/null
+fi
+
+# Part of the prompt used in text mode
+CURS=">"
+
+# Check for an active EchoLink connection first
+if [ -f "$LOCAL"/echo_active ] ; then
+  CONNECTED="`cat "$LOCAL/echo_call"` `cat "$LOCAL/echo_active"`"
+  killall ispeaker &>/dev/null &
+  log "Your node is currently connected to $CONNECTED"
+
+	# Connect audio message for $ECHO_SAY_NODE=NO
+	# Connect plus node number audio message for $ECHO_SAY_NODE=YES
+	# Connect plus node number plus call sign audio message for 
+	# $ECHO_SAY_NODE=BOTH
+	# Silent inbound connections for $ECHO_SAY_NODE=NONE
+	# Otherwise, connect plus call sign for any other settings in 
+	# $ECHO_SAY_NODE
+	case "$ECHO_SAY_NODE" in
+		"NO")	"$ECHO_SCRIPT"/echo_wavplay connected echolink ;;
+		"NONE")	"$ECHO_SCRIPT"/echo_wavplay connected echolink ;;
+		"YES")	"$ECHO_SCRIPT"/echo_wavgen "$LOCAL"/echo_active;
+			"$ECHO_SCRIPT"/echo_wavplay connected echolink echo_id;;
+		"BOTH")	"$ECHO_SCRIPT"/echo_wavgen "$LOCAL"/echo_call;
+			mv -f "$ECHO_AUDIO/echo_id.wav" "$ECHO_AUDIO/echo_id_call.wav";
+			"$ECHO_SCRIPT"/echo_wavgen "$LOCAL"/echo_active;
+			"$ECHO_SCRIPT"/echo_wavplay connected echolink echo_id_call nodenum echo_id ;;
+		*)	"$ECHO_SCRIPT"/echo_wavgen "$LOCAL"/echo_call;
+			"$ECHO_SCRIPT"/echo_wavplay connected echolink echo_id;;
+	esac
+
+  "$SCRIPT"/sfswrapper
+  exit 0
+fi
+
+# Now check for an active IRLP connection
+if [ -f "$LOCAL"/active ]; then
+  CONNECTED=`cat "$LOCAL"/active`
+  killall ispeaker &>/dev/null &
+  log "(IRLP) Your node is currently connected to $CONNECTED"
+  if [ ! -f "$AUDIO"/"$CONNECTED".wav ] ; then
+     eval `echo $CONNECTED | awk '{print "NODE_ID="substr($TEXT,4,4)}'`
+     echo $NODE_ID > "$LOCAL"/node_id
+     "$ECHO_SCRIPT"/echo_wavgen "$LOCAL"/node_id
+     "$ECHO_SCRIPT"/echo_wavplay connected nodenum echo_id
+  else
+     "$SCRIPT"/wavplay connected $CONNECTED
+  fi
+  "$SCRIPT"/sfswrapper
+  exit 0
+fi
+
+# Attempt to get callsign from thebridge's hosts file.
+parsehosts "$1"
+NODE_CALL="$HOSTSCALL"
+# If no hostname, assume invalid
+# (hosts file is updated at 5 min intervals. If it is a new node, wait 5 mins!)
+if [ "$NODE_CALL" = "" ] || [ "$NODE_CALL" = "Not Found" ] ; then
+  echo "${0##*/}: Unknown node!"
+  "$SCRIPT"/failure noexist
+  exit 0
+fi
+# Check for nodes which are explicitly locked out
+ESCSTR=`echo "$NODE_CALL" | sed 's/\*/\\\*/g'`
+# Allow for an optional different deny list from inbound vs outbound calls
+NODE_DENY="$ECHO_CUSTOM/node_deny"
+if [ -f "$ECHO_CUSTOM/node_deny_call" ] ; then
+  NODE_DENY="$ECHO_CUSTOM/node_deny_call"
+fi
+if [ -f "$NODE_DENY" ] && [ "$1" != "9999" ] ; then
+  if [ "$ECHO_REGEXP" = "YES" ] ; then
+    if [ `echo "$NODE_CALL" | egrep -i -f "$NODE_DENY"` ] || [ `echo "$1" | egrep -f "$NODE_DENY"` ]; then
+      echo "${0##*/}: Node $1 $NODE_CALL is in your node_deny list"
+      log "Call attempted to LOCKED-OUT node $1 $NODE_CALL"
+      $SCRIPT/wavplay lockout_local
+      exit 1
+    fi
+  else
+    if [ `grep -x "$ESCSTR" "$NODE_DENY"` ] || [ `grep -x "$1" "$NODE_DENY"` ]; then
+      echo "${0##*/}: Node $1 $NODE_CALL is in your node_deny list"
+      log "Call attempted to LOCKED-OUT node $1 $NODE_CALL"
+      $SCRIPT/wavplay lockout_local
+      exit 1
+    fi
+  fi
+fi
+
+# Is the node a shared conference?
+
+if [ "$ECHO_SHARED_CONF" = YES ]; then
+    echo "${0##*/}: Using conf_pwd file"
+    NODE_CALL=`grep "$1" "$ECHOLINUX"/echo_conf | cut -f1`
+    if [ "$NODE_CALL" != "" ] ; then
+      echo "${0##*/}: Calling shared conference $1 using IRLP protocols"
+      "$ECHO_SCRIPT"/echo_call_conf "$1" "$2" "$3" "$4"
+      exit 1
+    fi
+fi
+
+# Check to see if tbd is a conference.  If so, abort all outbound call attempts.
+if [ -f "$LOCAL"/echo_conference ]; then
+  echo "${0##*/}: TBD is in CONFERENCE MODE. Exiting."
+  exit 0
+fi
+
+# Flag "Connection in progress" to prevent unexpected behaviour if spurious 
+# rtcp disconnects received.
+touch "$LOCAL"/echo_pending
+
+# Set connection files
+# Set IRLP Status as connected to self
+#If the length of the stantionid is 6 (old three digit), it adds a zero
+if [ ${#STATIONID} = "6" ] ; then 
+  CONVERTED_STATIONID="$STATIONID"0
+else
+  CONVERTED_STATIONID="$STATIONID"
+fi
+echo $CONVERTED_STATIONID > "$LOCAL"/active
+echo "$1" > $LOCAL/echo_active
+echo "$ECHO_TBD_HOST" > $LOCAL/calledip
+echo "GSM" > $LOCAL/selectcodec
+echo "GSM" > $LOCAL/codec
+echo $NODE_CALL > $LOCAL/echo_call
+if [ "$ECHO_TBD_LISTEN" = "" ] ; then ECHO_TBD_LISTEN=2074 ; fi
+if [ "$ECHO_TBD_SEND" = "" ] ; then ECHO_TBD_SEND="$ECHO_TBD_LISTEN" ; fi
+if [ "$ECHO_TBD_SEND" != "2074" ] ; then
+  echo "$ECHO_TBD_SEND" > "$LOCAL"/udp_port
+fi
+touch "$LOCAL"/echoirlp
+
+"$SCRIPT/statupdate" &
+
+# Set timeout values
+
+eval `echo $NODE_CALL | awk '{
+     print "FIRSTCHAR="substr($NODE_CALL,1,1)}'`
+
+# If a conference, apply IRLP reflector idle timeout value
+# If not a conference, apply Echolink idle timeout if it is set
+# Otherwise apply IRLP node-node timeout
+if [ "$FIRSTCHAR" = "*" ] ; then  #KF7FLY, modified by VK3JED
+  if [ -n "$REFLECT_TIMEOUT_VALUE" ] && [ "$REFLECT_TIMEOUT_VALUE" != "0" ] ; then
+    if [ ! -f "$CUSTOM/timeoutvalue.temp" ] ; then # KF7FLY
+      cp -f "$CUSTOM/timeoutvalue" "$CUSTOM/timeoutvalue.temp" &>/dev/null
+      echo "$REFLECT_TIMEOUT_VALUE" > "$CUSTOM/timeoutvalue"
+      killall dtmf &>/dev/null
+      "$CUSTOM"/rc.mixer &>/dev/null
+      dtmf &>/dev/null
+    fi
+  else
+    rm -f "$LOCAL"/timeout
+  fi
+else 
+  if [ -n "$ECHO_TIMEOUT_VALUE" ]; then
+    if [ "$ECHO_TIMEOUT_VALUE" = "0" ]; then
+      rm -f "$LOCAL"/timeout
+    else
+      if [ ! -f "$CUSTOM/timeoutvalue.temp" ] ; then # KF7FLY
+        cp -f "$CUSTOM/timeoutvalue" "$CUSTOM/timeoutvalue.temp" &>/dev/null
+        echo "$ECHO_TIMEOUT_VALUE" > "$CUSTOM/timeoutvalue"
+        killall dtmf &>/dev/null
+        "$CUSTOM"/rc.mixer &>/dev/null
+        dtmf &>/dev/null
+      fi
+    fi
+  fi
+fi
+
+if [ "$2" = "notimeout" ] ; then
+  rm -f "$LOCAL"/timeout
+fi  
+
+if [ "$CUSTOM_ON" = "YES" ] ; then
+  if [ -f $CUSTOM/custom_on ] ; then
+    $CUSTOM/custom_on "$1" "$2" "$3" "$4"
+  fi
+fi
+
+# Connect audio message for $ECHO_SAY_NODE=NO
+# Connect plus node number audio message for $ECHO_SAY_NODE=YES
+# Connect plus node number plus call sign audio message for 
+# $ECHO_SAY_NODE=BOTH
+# Silent inbound connections for $ECHO_SAY_NODE=NONE
+# Otherwise, connect plus call sign for any other settings in 
+# $ECHO_SAY_NODE
+case "$ECHO_SAY_NODE" in
+	"NO")	"$ECHO_SCRIPT"/echo_wavplay echolinkon ;;
+	"NONE")	;;
+	"YES")	"$ECHO_SCRIPT"/echo_wavgen "$LOCAL"/echo_active;
+		"$ECHO_SCRIPT"/echo_wavplay echolinkon echo_id;;
+	"BOTH")	"$ECHO_SCRIPT"/echo_wavgen "$LOCAL"/echo_call;
+		mv -f "$ECHO_AUDIO/echo_id.wav" "$ECHO_AUDIO/echo_id_call.wav";
+		"$ECHO_SCRIPT"/echo_wavgen "$LOCAL"/echo_active;
+		"$ECHO_SCRIPT"/echo_wavplay echolinkon echo_id_call nodenum echo_id ;;
+	*)	"$ECHO_SCRIPT"/echo_wavgen "$LOCAL"/echo_call;
+		"$ECHO_SCRIPT"/echo_wavplay echolinkon echo_id;;
+esac
+"$BIN"/key
+
+# Set Environment Variables for Speak Freely
+export SPEAKFREE_CNAME="CALLSIGN" 
+export SPEAKFREE_ID="$ECHO_NODE_DESC"::"$ECHO_TBD_PASSWD"
+
+IMIKEFLAG="-t"
+
+#$SCRIPT/sfswrapper
+
+IMIKEFLAG3="$ECHO_TBD_HOST":"$ECHO_TBD_LISTEN"
+
+if [ "$FORCE_8BIT" = "YES" ] ; then
+  "$BIN"/imike -8 "$IMIKEFLAG" $IMIKEFLAG2 $IMIKEFLAG3 &>/dev/null &
+else
+  "$BIN"/imike "$IMIKEFLAG" $IMIKEFLAG2 $IMIKEFLAG3 &>/dev/null &
+fi
+
+# We're connected to the local gateway, now to connect to the remote Echolink node
+
+TBD_COMMAND connect "$NODE_CALL"
+TBDRESULT="$?"
+
+echo "${0##*/}: Status $TBDRESULT" 
+
+if [ "$TBDRESULT" = 200003 ] ; then
+   # Station not found
+   # "$SCRIPT"/wavplay noexist
+   "$ECHO_SCRIPT"/echo_failure noexist
+   rm -f "$LOCAL"/echo_pending
+   "$BIN/unkey"
+   exit 1
+elif [ "$TBDRESULT" = 200006 ] ; then
+   # Station is already connected
+   "$BIN/unkey"
+   $SCRIPT/sfswrapper
+   rm -f "$LOCAL"/echo_pending
+   exit 0
+elif [ "$TBDRESULT" = 0 ] ; then
+   #Station is not already connected, try connecting for 20 seconds
+   TIMER=0
+   while [ $TIMER -le 200 ] ; do
+      if [ -f "$LOCAL"/echo_outcall_ok ] ; then
+         # Connection was successful, clean up and terminate
+         if [ "$3" = "listenonly" ] ; then 
+            echo "Monitoring $NODE_CALL for listen only"
+            TBD_COMMAND monitor "$NODE_CALL"
+         fi
+         $SCRIPT/sfswrapper
+         if [ -f "/usr/local/bin/tone" ] && [ -n "$ECHO_CONNECT_TONE" ] ; then
+            "/usr/local/bin/tone" ${ECHO_CONNECT_TONE}
+	    usleep "250000"
+         fi
+         "$BIN"/unkey
+         rm -f "$LOCAL"/echo_outcall_ok
+         rm -f "$LOCAL"/echo_pending
+         exit 0
+      elif [ -f "$LOCAL/echo_refused" ]; then
+         # Station refused connection
+         echo "Connection refused"
+         #"$SCRIPT/wavplay" norespond
+         "$ECHO_SCRIPT/echo_failure" noconnect
+         "$BIN/unkey"
+         rm -f "$LOCAL"/echo_pending
+         rm -f "$LOCAL"/echo_refused
+         exit 1
+      fi
+      TIMER=$((TIMER+1))
+      usleep "100000"
+      if [ -f "/usr/local/bin/tone" ] ; then
+         if [ $((TIMER%40)) = 0 ] ; then
+	    #echo "playing ring tone..."
+            "/usr/local/bin/tone" 62 2000 0 440 480
+         fi
+      fi
+   done
+else
+   # Something unexpected happened with the connection attempt
+   # We need to create a new WAV file for this condition
+   echo "${0##*/}: ABEND Something went wrong - should never happen!"
+   "$BIN/unkey"
+fi
+
+# If we get to here, connection attempt timed out or was rejected.
+
+rm -f "$LOCAL"/echo_pending
+"$ECHO_SCRIPT"/echo_failure timeout
+
+"$BIN/unkey"
+exit 0

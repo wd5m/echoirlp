@@ -1,0 +1,15 @@
+--exclude=echo_id.wav
+--exclude=echo_call
+--exclude=echo_common
+--exclude=echo_disable
+--exclude=echo_disconnect
+--exclude=echo_enable
+--exclude=echo_end
+--exclude=echoidle_sleep
+--exclude=echoidle_wake
+--exclude=echo_inbound
+--exclude=echoirlp-status
+--exclude=echo_status
+--exclude=echo_update
+--exclude=echo_update_hosts
+--exclude=echo_busy

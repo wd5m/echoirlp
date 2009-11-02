@@ -1,0 +1,160 @@
+#!/bin/bash
+###########################################################
+#                                                         #                  
+#  Released under the GNU Public License                  #                  
+#                                                         #                  
+#  Script :  echo_end                                     #
+#  Author :  Marcus Xenakis WA2DCI                        #
+#  Version:  .15 Beta                                     #
+#  Date   :  3/22/03                                      #
+#  About  :  This script tests to see if the last call    #
+#            was EchoLink or IRLP. Passes to normal IRLP  #
+#            "end" script if not an EchoLink call         #
+#  CHANGELOG:                                             #
+#  06-Mar-04 VK2XJG: Modification for status updates      #
+#                                                         #
+###########################################################
+
+[ -z "$ECHO_SCRIPT" ] && ECHO_SCRIPT=/home/EchoIRLP/scripts
+   source $ECHO_SCRIPT/echo_common
+
+# Abort if no connection in progress to prevent killing echo-idle
+if [ -f "$LOCAL"/echoidle ]; then
+  # EchoIRLP is active, need to check if connection in place
+  if [ ! -f "$LOCAL"/active ]; then 
+    echo "${0##*/:} Restoring EchoIdle connection."
+    # No official connection, check that imike and ispeaker are running
+    # then abort
+    "$ECHO_SCRIPT"/sfswrapper
+    killall imike
+    # Set Environment Variables for Speak Freely
+    export SPEAKFREE_CNAME="CALLSIGN" 
+    export SPEAKFREE_ID="$ECHO_NODE_DESC"::"$ECHO_TBD_PASSWD"
+
+    IMIKEFLAG="-t"
+
+    IMIKEFLAG3="$ECHO_TBD_HOST":"$ECHO_TBD_LISTEN"
+    if [ "$FORCE_8BIT" = "YES" ] ; then
+      "$BIN"/imike -8 "$IMIKEFLAG" $IMIKEFLAG2 $IMIKEFLAG3 &>/dev/null &
+    else
+      "$BIN"/imike "$IMIKEFLAG" $IMIKEFLAG2 $IMIKEFLAG3 &>/dev/null &
+    fi
+  exit 0
+  fi
+fi
+
+# I not an EchoLink connection call normal IRLP end
+if [ ! -f "$LOCAL"/echo_active ] ; then 
+  "$SCRIPT"/end &
+  exit 0
+fi  
+
+# Check that disconnect not already in progress
+if [ -f "$LOCAL"/echo_disconnecting ] ; then
+  echo "${0##*/}: Disconnect already in progress, aborting..."
+  exit 0
+fi
+
+# Set "in progress" flag
+touch $LOCAL/echo_disconnecting
+
+if [ -f "$CUSTOM/timeoutvalue.temp" ] ; then    #KF7FLY
+  mv -f "$CUSTOM/timeoutvalue.temp" "$CUSTOM/timeoutvalue" &>/dev/null
+  killall dtmf &>/dev/null
+  "$CUSTOM"/rc.mixer &>/dev/null
+  dtmf &>/dev/null
+fi      #KF7FLY
+
+killall imike &>/dev/null
+killall ispeaker &>/dev/null
+
+"$SCRIPT"/fifoecho "$STATIONID" disconnect
+"$SCRIPT"/dropcall
+
+NODE_CALL=`cat "$LOCAL"/echo_call`
+echo "${0##*/}: $NODE_CALL"
+
+#LOGS the disconnect 
+log "Node Disconnect from EchoLink `cat $LOCAL/echo_active` `cat $LOCAL/echo_call`"
+
+if [ -f "$LOCAL"/echoirlp ] ; then
+  # Disconnect from destination node
+  TBD_COMMAND monitor disable "$NODE_CALL"
+  TBD_COMMAND disconnect all
+  echo "${0##*/}: TBD_COMMAND $NODE_CALL"
+  rm -f "$LOCAL"/echoirlp
+else
+  # Otherwise we're using a shared conference - update our status
+  "$ECHO_SCRIPT"/echo_status 
+fi
+
+# Save Node numbers
+NODE_ID=`cat "$LOCAL"/echo_active`
+CONVERTED_STATIONID=`cat "$LOCAL"/active`
+usleep 500000
+JUNK=`ps x | grep "/bin/bash /home/irlp/scripts/off timeout$"`
+if [ "$JUNK" != "" ] ; then
+	echo "$JUNK" &>/dev/null
+	#echo "IRLP timeout detected"
+else
+# Connect audio message for $ECHO_SAY_NODE=NO
+# Connect plus node number audio message for $ECHO_SAY_NODE=YES
+# Silent inbound connections for $ECHO_SAY_NODE=NONE
+# Default is connect plus call sign if no setting in $ECHO_SAY_NODE
+	#if [ -n $ECHO_SAY_NODE_INBOUND ] ; then	# override for inbound
+	#	ECHO_SAY_NODE=$ECHO_SAY_NODE_INBOUND
+	#fi
+	case "$ECHO_SAY_NODE" in
+		"NO")   "$ECHO_SCRIPT"/echo_wavplay echo_off;;
+		"YES")  "$ECHO_SCRIPT"/echo_wavgen "$LOCAL"/echo_active;
+			"$ECHO_SCRIPT"/echo_wavplay echo_id echo_off;;
+		"BOTH") "$ECHO_SCRIPT"/echo_wavgen "$LOCAL"/echo_call;
+			mv -f "$ECHO_AUDIO/echo_id.wav" "$ECHO_AUDIO/echo_id_call.wav";
+			"$ECHO_SCRIPT"/echo_wavgen "$LOCAL"/echo_active;
+			"$ECHO_SCRIPT"/echo_wavplay echo_id_call nodenum echo_id echo_off;;
+		"NONE") ;;
+		*)      "$ECHO_SCRIPT"/echo_wavgen "$LOCAL"/echo_call;
+			"$ECHO_SCRIPT"/echo_wavplay echo_id echo_off;;
+	esac
+	if [ -f "/usr/local/bin/tone" ] && [ -n "$ECHO_DISCONNECT_TONE" ] ; then
+		"$BIN/key"
+		usleep ${TXDELAY:-250000}
+		"/usr/local/bin/tone" ${ECHO_DISCONNECT_TONE}
+		usleep "250000"
+		"$BIN/unkey"
+	fi
+fi
+
+# remove status flags
+rm -f "$LOCAL"/echo_active &>/dev/null
+rm -f "$LOCAL"/echo_call &>/dev/null
+rm -f "$LOCAL"/codec &>/dev/null
+rm -f "$LOCAL"/selectcodec &>/dev/null
+rm -f "$LOCAL"/udp_port &>/dev/null
+rm -f "$LOCAL"/preaccess &>/dev/null
+rm -f "$LOCAL"/connectedip &>/dev/null
+rm -f "$LOCAL"/calledip &>/dev/null
+rm -f "$RUN"/* &>/dev/null
+rm -f "$LOCAL"/active &>/dev/null
+rm -f "$LOCAL"/node_id &>/dev/null
+rm -f "$LOCAL"/echoirlp &>/dev/null
+
+# Reset timeout
+touch "$LOCAL"/timeout
+
+#added for the really fast machines :)
+sleep 1
+
+if [ "$CUSTOM_OFF" = "YES" ] && [ -f "$CUSTOM"/custom_off ] ; then
+  "$CUSTOM"/custom_off $1
+else
+  "$ECHO_SCRIPT"/echo_status &
+fi
+
+# Update IRLP status
+"$SCRIPT"/statupdate &
+
+# Clear disconnect lock
+rm -f $LOCAL/echo_disconnecting
+
+exit 0

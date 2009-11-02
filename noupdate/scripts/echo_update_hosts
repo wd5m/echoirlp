@@ -1,0 +1,16 @@
+#!/bin/bash
+# This is run from echoirlp-status when tbd updates the hosts file 
+# and keeps a list of all echolink hosts that appear in a hosts-all file.
+
+[ -z "$ECHO_SCRIPT" ] && ECHO_SCRIPT=/home/EchoIRLP/scripts
+   source $ECHO_SCRIPT/echo_common
+
+if [ -f "$LOCAL/active" ] ; then exit 0; fi
+
+cat "$ECHO_TBD_DATA/hosts" | tr -d ' #)' | tr '(' "\t" | \
+      gawk -F'\t' '{ print $2"\t-\t"$3"\t"$1 }' > "$ECHOLINUX/echo_hosts.temp"
+mv -f "$ECHOLINUX/echo_hosts.temp" "$ECHOLINUX/echo_hosts"
+
+if [ -f "$ECHO_SCRIPT/echo_upload" ] ; then "$ECHO_SCRIPT/echo_upload" ; fi
+
+exit

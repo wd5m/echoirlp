@@ -1,0 +1,300 @@
+#!/bin/bash
+
+# Syntax echo_inbound CALLSIGN <notimeout <listenonly>>
+
+[ -z "$ECHO_SCRIPT" ] && ECHO_SCRIPT=/home/EchoIRLP/scripts
+   source $ECHO_SCRIPT/echo_common
+
+# Check to see if system is configured as a conference
+if [ -f "$LOCAL"/echo_conference ]; then
+  # tbd is configured as a conference server, so abort to keep it independent.
+  exit 0
+fi
+# Determine if tbd is running else exit
+pid=`/sbin/pidof -o $$ -o $PPID -o %PPID -x tbd`
+if [ "$pid" = "" ] ; then
+  log "tbd is not running..."
+  $SCRIPT/wavplay error contactirlp 9 9
+  exit 1
+fi
+
+# Determine if node is active 
+if [ ! -f "$LOCAL"/enable ] || [ ! -f "$LOCAL"/echo_enable ] ; then
+   # Node is not enabled, dump any incoming calls.
+   TBD_COMMAND message "This node is disabled.  Please try again later."
+   sleep 1
+   TBD_COMMAND play4 -u "$1" nodedisabled
+   sleep 6
+   TBD_COMMAND disconnect "$1"
+   exit 0
+fi
+
+# Determines node type for access control
+# check for conference first
+
+eval `echo "$1" | awk '/*/ {print "TYPE=conference"}' -`
+# Is this a link?
+if [ "$TYPE" = "" ] ; then 
+  eval `echo "$1" | awk '/-L/ {print "TYPE=link"}' -`
+fi
+# Is this a repeater?
+if [ "$TYPE" = "" ] ; then  
+  eval `echo "$1" | awk '/-R/ {print "TYPE=repeater"}' -`
+fi
+if [ "$TYPE" = "" ] ; then  
+  # Must be a Node number or Callsign
+  TYPE=user
+fi
+
+# Part of the prompt used in text mode
+CURS=">"
+
+LOCKOUT=NO
+
+# Check if we're locking out any of the node types
+# i.e. conferences, links, repeaters or PC users
+if [ -f "$ECHO_CUSTOM"/type_deny ]; then
+  if [ `grep -x "$TYPE" "$ECHO_CUSTOM/type_deny"` ]; then
+    LOCKOUT=YES
+    if [ "$TYPE" = "user" ] ; then
+      DENY_MSG="Sorry, This node only accepts connections from RF (-L or -R) nodes."
+    else
+      DENY_MSG="Sorry, You are not allowed to connect to this node."
+    fi
+  fi
+fi
+
+# Check for nodes which are explicitly locked out
+ESCSTR=`echo "$1" | sed 's/\*/\\\*/g'`
+if [ -f "$ECHO_CUSTOM"/node_deny ]; then
+  if [ "$ECHO_REGEXP" = "YES" ] ; then
+    if [ `echo "$1" | egrep -i -f "$ECHO_CUSTOM/node_deny"` ]; then
+      LOCKOUT=YES
+      DENY_MSG="Sorry, You are not allowed to connect to this node."
+    fi
+  else
+    if [ `grep -i -x "$ESCSTR" "$ECHO_CUSTOM/node_deny"` ]; then
+      LOCKOUT=YES
+      DENY_MSG="Sorry, You are not allowed to connect to this node."
+    fi
+  fi
+fi
+
+# Check for nodes explicitly allowed.
+if [ -f "$ECHO_CUSTOM"/node_allow ]; then
+  if [ "$ECHO_REGEXP" = "YES" ] ; then
+    if [ `echo "$1" | egrep -i -f "$ECHO_CUSTOM/node_allow"` ]; then
+      LOCKOUT=NO
+    fi
+  else
+    if [ `grep -i -x "$ESCSTR" "$ECHO_CUSTOM/node_allow"` ]; then
+      LOCKOUT=NO
+    fi
+  fi
+fi
+
+if [ "$LOCKOUT" = "YES" ] ; then
+  # Incoming party not allowed to connect, inform
+  # and disconnect
+  TBD_COMMAND message "$ECHO_MYCALL$CURS$DENY_MSG $ECHO_DENY_MSG"
+  log "Inbound connection from $1 denied (Locked Out)"
+  sleep 1
+  TBD_COMMAND play4 -u "$1" lockout_remote
+  sleep 10
+  TBD_COMMAND disconnect "$1"
+  exit 0
+fi
+
+
+if [ ! -f "$LOCAL"/echoirlp ] ; then
+
+   if [ -f "$ACTIVE" ] ; then
+      # IRLP or shared conf call in progress.  Inform Echolink user and disconnect.
+      if [ -f "$LOCAL"/echo_active ] ; then
+         ECHOCONF=`cat "$LOCAL"/echo_call`
+         TBD_COMMAND message "$ECHO_MYCALL$CURS"System connected to Echolink shared conference $ECHOCONF. Please try again later.
+         $ECHO_SCRIPT/echo_wavgen $LOCAL/echo_call
+         $ECHO_SCRIPT/wavprep $AUDIO/busynode $ECHO_AUDIO/echo_id
+         log "Busy EchoLink shared conference $ECHOCONF"
+      else
+         # Strip the REF or STN characters for a better playback experience - VK2XJG
+         IRLPNODE=`cat $LOCAL/active | tr -d "stnref"`
+         TBD_COMMAND message "$ECHO_MYCALL$CURS""System connected to IRLP node $IRLPNODE.  Please try again later."
+         $ECHO_SCRIPT/echo_wavgen "$LOCAL"/active
+         $ECHO_SCRIPT/wavprep $AUDIO/busynode $AUDIO/nodenum $ECHO_AUDIO/echo_id
+         log "Busy IRLP $IRLPNODE"
+      fi
+      TBD_COMMAND play4 -u "$1" wavefile
+      sleep 10
+      TBD_COMMAND disconnect "$1"
+      exit 0
+   else
+      if [ -f "$LOCAL"/echoidle ] ; then
+         # System is in echo idle state, allow incoming connects 
+         echo "${0##*/}: Idle in Echolink state, connection automatically accepted."
+         exit 0
+      fi
+      # Node is idle and accepting calls
+      # Need to check if frequency is busy before accepting Echolink call
+
+      if [ -f $LOCAL/cos_active ] ; then
+         # System is busy locally, inform connecting EchoLink party
+         # and disconnect
+         TBD_COMMAND message "$ECHO_MYCALL$CURS"System is busy with local traffic.  Please try again later.
+         log "Busy Local"
+         sleep 1
+         TBD_COMMAND play4 -u "$1" nodeinuse
+         sleep 6
+         TBD_COMMAND disconnect "$1"
+         exit 0
+      fi
+
+      if [ "$REPORTBUSY" = "YES" ] ; then
+         if ! $BIN/cosstate ; then
+            # System is busy locally, inform connecting EchoLink party
+            # and disconnect
+            TBD_COMMAND message "$ECHO_MYCALL$CURS"System is busy with local traffic.  Please try again later.
+            log "Busy Local"
+            sleep 1
+            TBD_COMMAND play4 -u "$1" nodeinuse
+            sleep 6
+            TBD_COMMAND disconnect "$1"
+            exit 0
+         fi
+      fi
+      # Play welcome file to calling node if exists KF7FLY
+      if [ -f "$ECHO_TBD_DATA/welcomeconnect.tbd" ]; then
+          echo -n "${0##*/}: Playing welcome file ... "
+         TBD_COMMAND play4 -u "$1" welcomeconnect.tbd
+          echo "done"
+      fi
+
+      # Set connection files
+      # Set IRLP Status as connected to self
+      #If the length of the stantionid is 6 (old three digit), it adds a zero
+      if [ ${#STATIONID} = "6" ] ; then 
+         CONVERTED_STATIONID="$STATIONID"0
+      else
+         CONVERTED_STATIONID="$STATIONID"
+      fi
+      echo $CONVERTED_STATIONID > "$LOCAL"/active
+      parsehosts "$1"
+      if [ "$HOSTSNUM" = "" ] ; then
+         log "Could not find $1 in hosts file"
+      fi
+      echo "$HOSTSNUM" > $LOCAL/echo_active
+      echo "$ECHO_TBD_HOST" > $LOCAL/connectedip
+      echo "GSM" > $LOCAL/selectcodec
+      echo "GSM" > $LOCAL/codec
+      echo $1 > $LOCAL/echo_call
+      if [ "$ECHO_TBD_LISTEN" = "" ] ; then ECHO_TBD_LISTEN=2074 ; fi
+      if [ "$ECHO_TBD_SEND" = "" ] ; then ECHO_TBD_SEND="$ECHO_TBD_LISTEN" ; fi
+      if [ "$ECHO_TBD_SEND" != "2074" ] ; then
+         echo "$ECHO_TBD_SEND" > "$LOCAL"/udp_port
+      fi
+      touch "$LOCAL"/echoirlp
+   fi
+
+   "$SCRIPT/statupdate" &
+
+   # Set timeout values
+
+   eval `echo $1 | awk '{
+        print "FIRSTCHAR="substr($1,1,1)}'`
+    
+   # If a conference, apply IRLP reflector idle timeout value
+   # If not a conference, apply Echolink idle timeout if it is set
+   # Otherwise apply IRLP node-node timeout
+   if [ "$FIRSTCHAR" = "*" ] ; then  #KF7FLY, modified by VK3JED
+     if [ -n "$REFLECT_TIMEOUT_VALUE" ] && [ "$REFLECT_TIMEOUT_VALUE" != "0" ] ; then
+       if [ ! -f "$CUSTOM/timeoutvalue.temp" ] ; then # KF7FLY
+         cp -f "$CUSTOM/timeoutvalue" "$CUSTOM/timeoutvalue.temp" &>/dev/null
+         echo "$REFLECT_TIMEOUT_VALUE" > "$CUSTOM/timeoutvalue"
+         killall dtmf &>/dev/null
+         "$CUSTOM"/rc.mixer &>/dev/null
+         dtmf &>/dev/null
+       fi
+     else
+       rm -f "$LOCAL"/timeout
+     fi
+   else
+     if [ -n "$ECHO_TIMEOUT_VALUE" ]; then
+       if [ "$ECHO_TIMEOUT_VALUE" = "0" ]; then
+         rm -f "$LOCAL"/timeout
+       else
+         if [ ! -f "$CUSTOM/timeoutvalue.temp" ] ; then # KF7FLY
+           cp -f "$CUSTOM/timeoutvalue" "$CUSTOM/timeoutvalue.temp" &>/dev/null
+           echo "$ECHO_TIMEOUT_VALUE" > "$CUSTOM/timeoutvalue"
+           killall dtmf &>/dev/null
+           "$CUSTOM"/rc.mixer &>/dev/null
+           dtmf &>/dev/null
+         fi
+       fi
+     fi 
+   fi
+    
+
+   if [ "$2" = "notimeout" ] ; then
+      rm -f "$LOCAL"/timeout
+   fi
+
+   if [ "$CUSTOM_ON" = "YES" ] ; then
+      if [ -f $CUSTOM/custom_on ] ; then
+         $CUSTOM/custom_on "$1" "$2" "$3" "$4"
+      fi
+   fi
+ 
+	# Connect audio message for $ECHO_SAY_NODE=NO
+	# Connect plus node number audio message for $ECHO_SAY_NODE=YES
+	# Silent inbound connections for $ECHO_SAY_NODE=NONE
+	# Default is connect plus call sign if no setting in $ECHO_SAY_NODE
+	if [ -n $ECHO_SAY_NODE_INBOUND ] ; then # override for inbound
+		ECHO_SAY_NODE=$ECHO_SAY_NODE_INBOUND
+	fi
+	case "$ECHO_SAY_NODE" in
+        	"NO")	"$ECHO_SCRIPT"/echo_wavplay echolinkon echo_on;;
+        	"YES")	"$ECHO_SCRIPT"/echo_wavgen "$LOCAL"/echo_active;
+                	"$ECHO_SCRIPT"/echo_wavplay echolinkon echo_id echo_on;;
+		"BOTH")	"$ECHO_SCRIPT"/echo_wavgen "$LOCAL"/echo_call;
+			mv -f "$ECHO_AUDIO/echo_id.wav" "$ECHO_AUDIO/echo_id_call.wav";
+        		"$ECHO_SCRIPT"/echo_wavgen "$LOCAL"/echo_active;
+			"$ECHO_SCRIPT"/echo_wavplay echolinkon echo_id_call nodenum echo_id;;
+        	"NONE")	;;
+        	*)	"$ECHO_SCRIPT"/echo_wavgen "$LOCAL"/echo_call;
+                	"$ECHO_SCRIPT"/echo_wavplay echolinkon echo_id echo_on;;
+	esac
+
+   # Set Environment Variables for Speak Freely
+   export SPEAKFREE_CNAME="CALLSIGN"
+   export SPEAKFREE_ID="$ECHO_NODE_DESC"::"$ECHO_TBD_PASSWD"
+     
+   IMIKEFLAG="-t"
+   if [ "$3" = "listenonly" ] ; then IMIKEFLAG2="-h -a -s32767,10" ; fi
+
+   $SCRIPT/sfswrapper
+	if [ -n $ECHO_INBOUND_TONE ] ; then
+		ECHO_CONNECT_TONE=$ECHO_INBOUND_TONE
+	fi
+	if [ -f "/usr/local/bin/tone" ] && [ -n "$ECHO_CONNECT_TONE" ] ; then
+		"$BIN"/coscheck
+		"$BIN"/key
+		usleep ${TXDELAY:-250000}
+		"/usr/local/bin/tone" ${ECHO_CONNECT_TONE}
+		usleep "250000"
+		"$BIN"/unkey
+	fi
+
+   IMIKEFLAG3="$ECHO_TBD_HOST":"$ECHO_TBD_LISTEN"
+
+   if [ "$FORCE_8BIT" = "YES" ] ; then
+      "$BIN"/imike -8 "$IMIKEFLAG" $IMIKEFLAG2 $IMIKEFLAG3 &>/dev/null &
+   else
+      "$BIN"/imike "$IMIKEFLAG" $IMIKEFLAG2 $IMIKEFLAG3 &>/dev/null &
+   fi
+
+   # At this point, we should be connected. 
+else
+   echo "${0##*/}: System already conected."
+   # Echolink call is already active, just log connected station and
+   # take no further action as IRLP side is already setup
+fi
