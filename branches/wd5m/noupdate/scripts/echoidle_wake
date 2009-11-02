@@ -1,0 +1,33 @@
+#!/bin/bash
+
+GT=">"
+[ -z "$ECHO_SCRIPT" ] && ECHO_SCRIPT=/home/EchoIRLP/scripts
+   source $ECHO_SCRIPT/echo_common
+
+if [ -f "$LOCAL"/echoidle ] ; then
+  # System is set to idle on Echolink connection, have
+  # just come out of IRLP connection, need to reconnect to Echolink silently
+  
+  # Reconnect to Echolink node
+  TBD_COMMAND connect `cat "$ECHO_CUSTOM"/echo-idle`
+  if [ "$ECHO_TBD_LISTEN" = "" ] ; then ECHO_TBD_LISTEN=2074 ; fi
+  if [ "$ECHO_TBD_SEND" = "" ] ; then ECHO_TBD_SEND="$ECHO_TBD_LISTEN" ; fi
+  # Set Environment Variables for Speak Freely
+  export SPEAKFREE_CNAME="CALLSIGN" 
+  export SPEAKFREE_ID="$ECHO_NODE_DESC"::"$ECHO_TBD_PASSWD"
+
+  killall imike
+  IMIKEFLAG="-t"
+
+  "$ECHO_SCRIPT"/sfswrapper
+
+  IMIKEFLAG3="$ECHO_TBD_HOST":"$ECHO_TBD_LISTEN"
+
+  if [ "$FORCE_8BIT" = "YES" ] ; then
+    "$BIN"/imike -8 "$IMIKEFLAG" $IMIKEFLAG2 $IMIKEFLAG3 >/dev/null 2>&1 &
+  else
+    "$BIN"/imike "$IMIKEFLAG" $IMIKEFLAG2 $IMIKEFLAG3 >/dev/null 2>&1 &
+  fi
+
+  TBD_COMMAND -q message "$ECHO_MYCALL$GT EchoIRLP node back from IRLP call."
+fi

@@ -1,0 +1,393 @@
+EchoIRLP modifications for tbd-0.81 and other enhancements by KF7FLY.
+May 24, 2005
+
+Modified files:
+echo_call
+echo_common
+echo_disable
+echo_disconnect
+echo_enable
+echo_end
+echo_environment
+echoidle_sleep
+echoidle_wake
+echo_inbound
+echoirlp-status
+echo_status
+echo_update
+echo_update_hosts
+
+Removed and excluded files:
+script/echo_busy
+audio/echo_id.wav
+
+---------
+echo_call
+---------
+
+Change checks for user repeater and environment.
+
+Use log function instead of echo.
+
+Check that tbd is running.
+
+Change to $ECHO_SAY_NODE to add NONE option and make connections silent.
+--
+# Connect audio message for $ECHO_SAY_NODE=NO
+# Connect plus node number audio message for $ECHO_SAY_NODE=YES
+# Silent inbound connections for $ECHO_SAY_NODE=NONE
+# Default is connect plus call sign if no setting in $ECHO_SAY_NODE
+--
+
+Remove killall ispeaker_PCI...
+
+Add regular expression capability to node_deny.
+See details below.
+
+Provide for an optional different deny list for inbound vs outbound calls.  
+Use file "node_deny_call" to list node callsigns to deny on outbound 
+connections only.
+
+Remove extra $BIN/key.
+
+Added name of script to some echo statements for debugging.
+
+Add listenonly option as 3rd argument to script, like IRLP.
+
+Provide a "echo_refused" audio response.
+
+Provide a dialed call ringing sound from tone while waiting for connection
+to complete.
+
+Use TBD_COMMAND function instead of program.
+
+Remove PCI_FIX option on imike.
+
+I added a feature to allow nodes to set a tone for connect or disconnect 
+using environment variables.  If the /usr/local/bin/tone program is 
+installed from the kc6hur web site, and these environment variables are set in
+echo_environment, they will be used to announce connect/disconnects.
+This works a bit better than a WAV file beep to avoid interfering with
+remote node audio announcements, but still not perfect.
+
+-----------
+echo_common
+-----------
+
+Adapt TBD_COMMAND function to tbd version 0.8+ to use double ".." 
+prefix on commands when chat has been enabled by sysop. Ignore chat
+and refresh commands if tbd is not version 0.8+.
+
+Update parsehosts function to use new tbd refresh feature. Some changes to
+grep options. Add host status to returned values.
+
+------------
+echo_disable
+------------
+
+Update environment checks.
+
+Run echo_status and log disabled EchoIRLP.
+
+Use log function instead of echo.
+
+---------------
+echo_disconnect
+---------------
+
+Remove "-q" from tbd disconnect all
+
+-----------
+echo_enable
+-----------
+
+Update environment checks.
+
+Use log function instead of echo.
+
+--------
+echo_end
+--------
+
+Update environment checks.
+
+Added name of script to some echo statements for debugging.
+
+Remove killall imike_PCI and PCI_FIX for imike_PCI.
+
+Remove killall imike_PCI and killall ispeaker_PCI
+
+Remove (comment) extra $BIN/key statement.
+
+Use TBD_COMMAND function instead of program.
+
+Use echo_status script instead of binary.
+
+Change to $ECHO_SAY_NODE to add NONE option and make connections silent.
+Add $ECHO_SAY_NODE_INBOUND to use this setting for $ECHO_SAY_NODE,
+allowing different setting on inbound and disconnect announcement.
+$ECHO_SAY_NODE_INBOUND overrides $ECHO_SAY_NODE on inbound and disconnect.
+
+Use TXDELAY environment variable on key delay.
+
+Use "&&" for logic about CUSTOM_OFF setting and file.
+
+Removed WA2DCI status update code.
+
+Commented an extra unkey statement.
+
+I added a feature to allow nodes to set a tone for connect or disconnect 
+using environment variables. See the echo_call nodes above.
+
+----------------
+echo_environment
+----------------
+
+These new, optional variables can be added to your 
+$ECHO_CUSTOM/echo_environment file.
+
+# <ECHO_CONNECT_TONE>
+# Argument string for the tone program to play upon connecting.
+# example: export ECHO_CONNECT_TONE="100 200 0 800 0 200 0 1500 0"
+export ECHO_CONNECT_TONE="100 200 0 800 0 200 0 1500 0"
+
+# <ECHO_DISCONNECT_TONE>
+# Argument string for the tone program to play upon disconnecting.
+# example: export ECHO_DISCONNECT_TONE="100 200 0 1500 0 200 0 800 0"
+export ECHO_DISCONNECT_TONE="100 200 0 1500 0 200 0 800 0"
+
+# <ECHO_INBOUND_TONE>
+# Optional, overrides ECHO_CONNECT_TONE for inbound connection.
+# Argument string for the tone program to play upon disconnecting.
+# example: export ECHO_INBOUND_TONE="100 200 0 800 0 200 0 1500 0"
+export ECHO_INBOUND_TONE="100 200 0 800 0 200 0 1500 0"
+
+# <REGEXP>
+# Value of YES enables regular expresions in the ACL node_deny and
+# node_allow files.
+export ECHO_REGEXP=YES
+
+# <ECHO_SAY_NODE>
+# <ECHO_SAY_NODE_INBOUND>
+# These variables determines what is announced locally on connect and 
+# disconnect.
+# $ECHO_SAY_NODE=NO	# Just connect message played.
+# $ECHO_SAY_NODE=YES	# Also announce node number.
+# $ECHO_SAY_NODE=CALLSIGN	# Default, announce node call sign
+# $ECHO_SAY_NODE=NONE	# Silent, nothing announced.
+# If set, the ECHO_SAY_NODE_INBOUND overrides ECHO_SAY_NODE on incoming
+# and disconnect announcement. Allows for silent incoming versus announced
+# outgoing connections.
+# $ECHO_SAY_NODE_INBOUND=NONE
+export ECHO_SAY_NODE=YES
+export ECHO_SAY_NODE_INBOUND=NONE
+
+------------
+echo_inbound
+------------
+
+Removed a bunch of comments from file header.
+
+Change to $ECHO_SAY_NODE to add NONE option and make connections silent.
+Add $ECHO_SAY_NODE_INBOUND to use this setting for $ECHO_SAY_NODE,
+allowing different setting on inbound and disconnect announcement.
+$ECHO_SAY_NODE_INBOUND overrides $ECHO_SAY_NODE on inbound and disconnect.
+--
+# Connect audio message for $ECHO_SAY_NODE=NO
+# Connect plus node number audio message for $ECHO_SAY_NODE=YES
+# Silent inbound connections for $ECHO_SAY_NODE=NONE
+# Default is connect plus call sign if no setting in $ECHO_SAY_NODE
+--
+
+Update TBD_COMMAND calls to function to pass arguments correctly and 
+consistantly.
+
+Add regular expression capability to node_deny  and node_allow. 
+See details below.
+
+Add $ECHO_CONNECT_TONE and $ECHO_INBOUND_TONE environment variable option 
+to play connect tone.  See notes on echo_environment changes.
+
+---------------
+echoirlp_status
+---------------
+
+Update to skip logging of version of refresh messages.
+
+Update environment and user check to use echo_common.
+
+--------------
+echoidle_sleep
+--------------
+
+Remove "-q" from tbd command.
+
+-------------
+echoidle_wake
+-------------
+
+Remove "-q" from tbd command.
+
+---------------
+echoirlp-status
+---------------
+
+Don't log version and refresh commands from tbd.
+
+-----------
+echo_status
+-----------
+
+Update environment checks.
+
+Add busy off and chat off tbd commands.
+
+Use ConferenceQth value fron tbd.conf for ECHO_LOCATION on status update.
+
+Ensure $CUSTOM/timeoutvalue.temp replaces timeout value if exists.
+
+Remove call to binary echostatus. Use tbd busy status and info commands.
+
+Remove "update" beep and upload script statements.
+
+Add tbd chat off, busy off and info.
+
+-----------
+echo_update
+-----------
+
+Corrected test for noupdate directory/files from previous modification.
+
+Update environment checks.
+
+Add usage info.
+
+Added check for noupdate files to eliminate the error message when
+echo_update is executed.
+
+Add -p option to cp noupdate statement.
+
+-----------------
+echo_update_hosts
+-----------------
+
+Exit if node is active ($LOCAL/active) to improve performance on low end
+nodes.
+
+Stop keeping history of all nodes in hosts-all file to eliminate performance
+and scalability problem.  Just convert tbd hosts file to echo_hosts file for 
+compatibility with old binaries.
+
+-------------------
+REGULAR EXPRESSIONS
+-------------------
+
+Add the following to lines $ECHO_CUSTOM/echo_custom file and restart node 
+to enable the REGEXP option.  
+
+--
+# <REGEXP>
+# Value of YES enables regular expresions in the ACL node_deny and
+# node_allow files.
+export ECHO_REGEXP=YES
+--
+
+You must understand how to use regular expressions with "egrep -f".  For 
+example, this regexp in the node_allow file matches any USA EchoLink repeater 
+or link node callsign.
+
+(^A|^K|^N+)([A-Z]?)[0-9]{1}[A-Z]+-[RL]$
+
+
+Notes:
+
+I have tested these changes only on RedHat 7.3 so far.  It is unlikely these 
+changes will work on RedHat 6.x.  I expect they will work fine on RH9 and FC3.
+
+I have tested these changes briefly with tbd version 0.77.  Some differences
+may be noticed when using these scripts with tbd 0.77.
+
+These changes result in EchoIRLP no longer keeping a historical file list of
+known EchoLink nodes in a "hosts-all" file.  The tbd 0.81 release adds
+a "refresh" command that will write all known nodes in the tbd internal
+directory list to the EchoIRLP node hosts file.  Nodes that are not yet in
+the tbd internal directory listing may appear to be unknown when you call
+them.
+
+When the new tbd 0.81 chat feature is enabled, tbdcmd commands must be
+prefixed with "..".  The TBD_COMMAND function was updated to do this.
+
+When a connection is terminated, EchoIRLP will disable chat.
+
+Some additional tbd messages are being filtered from the log in 
+echoirlp-status to avoid filling the log with tbd 0.81 commands with
+tbd 0.7x.
+
+Some changes were made to the parsehosts function to make it work with the
+new tbd hosts file format, which adds a new "(off line)" string to node
+records.
+
+I use the "noupdate" and/or update-file-list feature of EchoIRLP to keep my 
+changes installed in their normal directories on the node.  You enable this 
+feature in IRLP by setting the IRLP environment line "export NOUPDATE=YES" and
+restarting IRLP.  Once you do this, IRLP and EchoIRLP will use the
+"noupdate" directory in their respective home directories as the source
+of replacement files for their respective home directories and files.
+Refer to the unofficial IRLP manual for details.  If these updates are
+officially added to the EchoIRLP distribution server, I simply remove them
+from my update-file-list exclusion list and noupdate directories or scripts.
+
+Note that you can simply replace the files in /home/EchoIRLP/scripts/ and
+exclude them from being replaced in the nightly updates by excluding them
+via the update-file-list file in /home/EchoIRLP/custom/.  Then you do not
+need to have the noupdate directory.  However, I find it easier to switch
+back and forth with the noupdate directory.
+
+To install these modifications on a node:
+
+1. Be sure the "noupdate" feature is enabled in the IRLP environment file.
+You must restart IRLP if the environment file is changed.
+
+2. If you have any local modifications via the noupdate directory method,
+BACKUP YOUR FILES.
+
+3. Login as repeater and change to the /home/EchoIRLP/ directory
+(cd /home/EchoIRLP).
+
+4. Transfer a copy of this tar file (kf7fly-echoirlp-tbd-0.81-updates.tgz)
+to the node system.  For example, I place a copy in the /tmp/ directory.
+
+5. While positioned in the /home/EchoIRLP/ directory, run the command:
+	tar zvxf /tmp/kf7fly-echoirlp-updates.tgz
+
+This should install the files in your /home/EchoIRLP/noupdate/ directory
+tree.
+
+The following command will create a "update-file-list" in the custom
+directory to prevent the update script from downloading the modified
+scripts from the IRLP server.
+
+ls -1 noupdate/scripts/ | sed s/^/--exclude=/ >custom/update-file-list
+
+
+6. Run $ECHO_SCRIPT/echo_update files
+This will install the files in the noupdate directory to their normal
+EchoIRLP directories after downloading any updates from the distribution
+server.
+
+7. Enable the "IncludeAllHosts = 1" setting in $ECHO_CUSTOM/tbd.conf if
+you want to include off line nodes in the tbd hosts file.  This may
+reduce the number of "unknown host" errors on connection attempts.
+
+
+To uninstall these changes:
+
+1. Rename or remove the /home/EchoIRLP/noupdate/ directory.
+
+2. Rename or remove the /home/EchoIRLP/custom/update-file-list file.
+
+3. Run $ECHO_SCRIPT/echo_update files
+
+
+Regards,
+David McAnally (KF7FLY)

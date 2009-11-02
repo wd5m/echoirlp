@@ -1,0 +1,76 @@
+#!/bin/bash
+#
+
+# Dump all connections if EchoIRLP node drops call.
+# Note provision to override this behaviour
+CURS=">"
+
+if [ ! -f "$LOCAL"/echoirlp ] ; then
+   # Connection is not using Echolink protocol, so ignore spurious 
+   # disconnection status messages
+   exit 0
+fi
+
+if [ -f "$LOCAL"/echoidle ] ; then
+   # Connection is in idle mode, we don't want to dump Echolink users
+   # In this mode, we let people come and go as they please.
+   # We do need to check for manually initiated connection though 
+   # to avoid the node being in an inconsistent state. 
+   if [ -f "$LOCAL"/echo_active ] ; then
+      ECHO_CONNECTED=`cat "$LOCAL"/echo_call`
+      if [ "$1" = "$ECHO_CONNECTED" ] ; then
+         # Need to drop manually initiated connection
+         $ECHO_SCRIPT/echo_end
+      fi
+   fi 
+   # Check to ensure we haven't disconnected ourselves
+   if [ "$1" = "$ECHO_MYCALL" ]; then
+      if [ -f "$LOCAL"/echo_keepalive ]; then
+         # imike has been temporarily dropped by a script, do not reconnect yet
+         exit 0
+      fi
+      # Check that IRLP connection is not active, if it is, abort
+      if [ -f "$LOCAL"/active ]; then
+         exit 0
+      fi
+      # imike has become disconnected in idle mode, reconnect it.
+      sleep 1
+      # Set Environment Variables for Speak Freely
+      export SPEAKFREE_CNAME="CALLSIGN"
+      IMIKEFLAG="-t"
+      $SCRIPT/sfswrapper
+      IMIKEFLAG3="$ECHO_TBD_HOST":"$ECHO_TBD_LISTEN"
+      if [ "$FORCE_8BIT" = "YES" ] ; then
+         "$BIN"/imike -8 "$IMIKEFLAG" $IMIKEFLAG2 $IMIKEFLAG3 &>/dev/null &
+      else
+         "$BIN"/imike "$IMIKEFLAG" $IMIKEFLAG2 $IMIKEFLAG3 &>/dev/null &
+      fi
+   fi   
+   exit 0
+fi
+
+if [ "$1" = "$ECHO_MYCALL" ]; then 
+   if [ -f "$LOCAL"/echo_keepalive ]; then
+      # imike has been temporarily dropped by a script, do not disconnect
+      exit 0
+   fi
+   if [ "$ECHO_DROP_ON_IRLP_DISC" != NO ] ; then
+      TBD_COMMAND disconnect all
+      $ECHO_SCRIPT/echo_end
+   fi
+   exit 0  
+fi
+
+if [ "$2" = "1" ] || [ "$2" = "0" ] ; then
+   # Assume IRLP node is the only system connected, 
+   # so disconnect and set back to idle status.
+   # Do not disconnect local IRLP node if outbound echolink pending
+   if [ -f "$LOCAL"/echo_pending ] ; then 
+      exit 0
+   fi 
+   echo "$1" > "$LOCAL"/echo_call
+   "$ECHO_SCRIPT"/echo_wavgen "$LOCAL"/echo_call
+   "$ECHO_SCRIPT"/echo_end
+else
+   echo "${0##*/}: Node $1 disconnected"
+fi

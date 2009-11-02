@@ -1,0 +1,81 @@
+#!/bin/bash
+
+. /home/irlp/custom/environment
+source $SCRIPT/common-functions.sh
+
+[ -z "$ECHO_SCRIPT" ] && ECHO_SCRIPT=/home/EchoIRLP/scripts
+source $ECHO_SCRIPT/echo_common
+
+if [ "$1" = "" ] ; then
+   echo "usage: ${0##*/} files"
+   exit 1
+fi
+
+#First we determine what IP we are going to for updates
+
+echo -n "Obtaining best server IP ... "
+SERVERIP=`$ECHO_SCRIPT/find_best_server`
+#SERVERIP=203.220.0.74
+echo "found IP = $SERVERIP"
+
+if [ "$1" = "files" ] ; then
+
+echo "${0##*/}: Performing file update ..."
+  
+#Prevents multiple instances of this from running
+   if [ -f $RUN/echo_updatelock ] ; then
+      echo Update already pending, exiting
+      exit 0
+   else
+      touch $RUN/echo_updatelock
+   fi
+
+   trap "rm -f $RUN/echo_updatelock" EXIT
+
+# Cleanup for files that slipped through from time to time.
+  
+   while [ -f "$LOCAL"/echo_active ]; do
+      echo "${0##*/}: Node is connected, sleeping 30 seconds and trying again."
+      sleep 30
+   done
+
+  killall dtmf &>/dev/null
+
+  #Check for a custom include/exclude list
+  if [ -f $ECHO_CUSTOM/update-file-list ] ; then
+    UPDATEFILELIST="`cat $ECHO_CUSTOM/update-file-list`"
+  else
+    UPDATEFILELIST=""
+  fi
+
+  if [ "$OPTION10" = "YES" ] || [ "$RSYNC8873" = "YES" ] ; then  
+    $BIN/rsync --timeout=120 --port=8873 $UPDATEFILELIST --exclude=stn*.wav -Wazv $SERVERIP::echoirlp $ECHOLINUX
+  else
+    $BIN/rsync --timeout=120 -Wazv $UPDATEFILELIST --exclude=stn*.wav $SERVERIP::echoirlp $ECHOLINUX
+  fi
+
+  #For sites that can not take an update of certain files, we'll rewrite those
+  if [ "$NOUPDATE" = "YES" ] && [ -d "$ECHOLINUX/noupdate" ] ; then
+    echo "${0##*/}: Copying noupdate files..."
+    cp -p -R -f $ECHOLINUX/noupdate/* $ECHOLINUX
+  fi
+
+  # We will reset file permissions, just incase...
+  
+  #chmod 750 "$ECHOLINUX"/audio/* &>/dev/null
+  chmod 660 "$ECHOLINUX"/audio/* &>/dev/null
+  chmod 750 "$ECHOLINUX"/bin/* &>/dev/null
+  chmod 750 "$ECHOLINUX"/scripts/* &>/dev/null
+  chmod 750 "$ECHOLINUX"/custom/* &>/dev/null
+
+  chown -R repeater.repeater "$ECHOLINUX"/* &>/dev/null
+  
+#  $SCRIPT/process_check
+#  $SCRIPT/irlp_reset
+
+  "$CUSTOM"/rc.mixer &>/dev/null
+  $BIN/dtmf &>/dev/null &
+  echo "${0##*/}: complete."
+  exit 0
+fi
+

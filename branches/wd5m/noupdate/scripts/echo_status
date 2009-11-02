@@ -1,0 +1,74 @@
+#!/bin/bash
+###########################################################
+#                                                         #                  
+#  Released under the GNU Public License                  #                  
+#                                                         #                  
+#  Script  :  echo_status                                 #
+#  Author  :  Marcus Xenakis WA2DCI                       #
+#  Version :  .16 Beta                                    #
+#  Date    :  3/22/03                                     #
+#  About   :  This script tests to see if we are in an    #
+#             active EchoLink call amd reports status as  #
+#             "busy" to EchoLink                          #
+# Modified :                                              #
+# 15-Mar-03: clean up files after time-out                #
+# 25-Mar-03 WA6RQD: change awk call for 6.2               #
+# 06-Mar-04 VK2XJG: Major rework for RC1 release          #         
+#                                                         #
+###########################################################
+
+[ -z "$ECHO_SCRIPT" ] && ECHO_SCRIPT=/home/EchoIRLP/scripts
+   source $ECHO_SCRIPT/echo_common
+
+# Exits if node is not enabled
+if [ ! -f "$LOCAL"/enable -o ! -f "$LOCAL"/echo_enable ] ; then 
+  echo "${0##*/}: The node is not enabled"
+  TBD_COMMAND busy on
+  TBD_COMMAND chat off
+  exit 0
+fi
+# Let's use the Location QTH value from tbd.conf.
+ECHO_LOCATION=`grep "^ConferenceQth" $ECHO_CUSTOM/tbd.conf | \
+	head -n 1 | \
+	cut -d'=' -f2 | \
+	sed s/^\ //`
+# Clean-up in case we timed-out
+if [ ! -f "$LOCAL"/active -a -f "$LOCAL"/echo_active ] ; then 
+  rm -f "$LOCAL"/echo_active &>/dev/null
+  rm -f "$LOCAL"/echo_call &>/dev/null
+  rm -f "$LOCAL"/node_id &>/dev/null
+  TBD_COMMAND chat off
+  TBD_COMMAND busy off
+  TBD_COMMAND info "$ECHO_LOCATION"
+  if [ -f "$CUSTOM/timeoutvalue.temp" ] ; then
+    mv -f "$CUSTOM/timeoutvalue.temp" "$CUSTOM/timeoutvalue" &>/dev/null
+    killall dtmf &>/dev/null
+    "$CUSTOM"/rc.mixer &>/dev/null
+    dtmf &>/dev/null
+  fi
+fi
+
+# Are we active? 
+if [ -f "$LOCAL"/echo_active ] ; then
+  # BUSY EchoLink
+  NODE_CALL=`cat "$LOCAL"/echo_call`
+  TBD_COMMAND busy status
+  TBD_COMMAND info "In Conference `echo "$NODE_CALL"`"
+  echo "EchoIRLP is BUSY with $NODE_CALL"
+elif [ -f "$LOCAL"/active ] ; then
+  # BUSY IRLP
+  NODE_CALL=`cat "$LOCAL"/active`
+  eval `echo $NODE_CALL | awk '{print "NODENUM="substr($NODE_CALL,4,4)}'`
+  # Set TBD BUSY OFF so that remote user gets full busy info (Busy IRLP xxxxxxx)
+  TBD_COMMAND busy status
+  TBD_COMMAND info "In Conference IRLP $NODENUM"
+  echo "IRLP is BUSY with $NODENUM"
+else
+  # If we are not OFFLINE, and not BUSY, we must be IDLE !
+  TBD_COMMAND chat off
+  TBD_COMMAND busy off
+  TBD_COMMAND info "$ECHO_LOCATION"
+  echo "EchoIRLP is IDLE"
+fi
+
+exit 0

@@ -1,0 +1,15 @@
+#!/bin/bash
+
+GT=">"
+[ -z "$ECHO_SCRIPT" ] && ECHO_SCRIPT=/home/EchoIRLP/scripts
+   source $ECHO_SCRIPT/echo_common
+
+if [ -f "$LOCAL"/echoidle ] ; then
+   # System is set to idle on Echolink connection, have
+   # Incoming IRLP call, kill Echolink connections and connect IRLP, leaving
+   # connected Echolink stations connected.
+  
+   TBD_COMMAND message "$ECHO_MYCALL$GT Incoming IRLP call from $1, back later!"
+   killall imike
+
+fi

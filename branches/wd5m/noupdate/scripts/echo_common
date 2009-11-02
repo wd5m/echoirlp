@@ -1,0 +1,138 @@
+#!/bin/bash
+########################################################################
+# Convenience Functions
+########################################################################
+# Logging
+log() {
+   MESSAGE="EchoIRLP: $@"
+   echo "${0##*/}:$MESSAGE"
+   if [ -n "$LOGFILE" ]; then
+      echo "`date '+%b %d %Y %T %z'` $MESSAGE" >> $LOGFILE
+   fi
+}
+
+# Only execute a tbdcmd if tbd is running.
+TBD_COMMAND() {
+	local pid
+	pid=`/sbin/pidof -o $$ -o $PPID -o %PPID -x tbd`
+	if [ -z "$pid" ] ; then
+		log "tbd is not running..."
+		return 1
+	fi
+	# determine if tbd is older than version 0.8
+	local TBDARG
+	local DD=0
+	"${ECHO_TBD_COMMAND}" -s -q "..version" &>/dev/null
+	if [ "$?" != "0" ] ; then
+		if [ "$1" != "chat" ] && [ "$1" != "refresh" ] ; then
+			DD=1;	# then we'll run this command
+		else
+			return	# chat/refresh not supported
+		fi
+	else	# add the double .. prefix to the command.
+		while [ "$DD" = "0" ];do
+			case $1 in
+				-*)
+				if [ -z "$TBDARG" ] ; then
+					TBDARG="${1}"
+				else
+					TBDARG="${TBDARG} ${1}"
+				fi
+				;;
+				..*)
+				if [ -z "$TBDARG" ] ; then
+					TBDARG="${1}"
+				else
+					TBDARG="${TBDARG} ${1}"
+				fi
+				DD=1
+				;;
+				.*)
+				if [ -z "$TBDARG" ] ; then
+					TBDARG=".${1}"
+				else
+					TBDARG="${TBDARG} .${1}"
+				fi
+				DD=1
+				;;
+				*)
+				if [ -z "$TBDARG" ] ; then
+					TBDARG="..${1}"
+				else
+					TBDARG="${TBDARG} ..${1}"
+				fi
+				DD=1
+				;;
+				esac
+			shift
+		done
+	fi
+	#log "$TBDARG $@"
+        #for JUNK ; do
+        #        log "$JUNK"
+        #done
+	"${ECHO_TBD_COMMAND}" "$TBDARG $@" &>/dev/null
+}
+# Search and parse a record from the tbd hosts file.
+parsehosts() {
+	HOSTSIP=""
+	HOSTSCALL=""
+	HOSTSNUM=""
+	HOSTSSTATUS=""
+	# Check to see if an argument exists
+	if [ "$#" -ne "1" ]; then 
+		echo "usage: parsehosts [number][call-sign]"
+		echo "Sets vars \$HOSTSIP, \$HOSTSCALL and \$HOSTSNUM from"
+		echo "tbd hosts file."
+		return
+	fi
+	TBD_COMMAND refresh
+	local ECHOHOSTS="$ECHO_TBD_DATA/hosts"
+	set `echo "$1" | sed 's/\*/\\\*/g'`
+	local SRCH="$1"
+	# First determine which vendor we have: RedHat or Fedora
+	RH_REL=/etc/redhat-release
+	if [ -f $RH_REL ]; then
+		REL=`cat $RH_REL`
+	fi
+	case $REL in
+		"Red Hat Linux release 6"*)
+			local MAXCNT=" "
+			;;
+		*)
+		local MAXCNT="--max-count=1"
+		;;
+	esac
+	eval `grep -i -w "$MAXCNT" "$SRCH" "$ECHOHOSTS" | \
+		tr -d ' #)' | tr '(' "\t" | \
+		awk -F'\t' '{ \
+		print "HOSTSIP="$1;print "HOSTSCALL="$2;print "HOSTSNUM="$3;print "HOSTSSTATUS="$4 \
+		}'`
+		if [ "$HOSTSSTATUS" ] ; then
+			echo "$HOSTSNUM $HOSTSSTATUS"
+		fi
+}
+
+########################################################################
+# Standard Opening Tests
+########################################################################
+# Make sure we are user repeater!!!
+if [ "`/usr/bin/whoami`" != "repeater" ] ; then
+  echo "${0##*/}:  must be run as user REPEATER!"
+  exit 1
+fi
+
+# Make sure we have sourced the IRLP environment file
+if [ "$RUN_ENV" != "TRUE" ] ; then
+  echo -n "Loading IRLP environment ... "
+  . /home/irlp/custom/environment
+  echo "DONE"
+fi
+
+# Make sure we have sourced the EchoIRLP environment file
+if [ "$ECHO_ENV" != "TRUE" ] ; then
+  echo -n "Loading EchoIRLP environment ... "
+  . /home/EchoIRLP/custom/echo_environment
+  echo "DONE"
+fi
+
