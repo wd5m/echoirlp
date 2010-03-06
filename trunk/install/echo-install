@@ -36,6 +36,7 @@
 # 27-Aug-09 WD5M: Modified check for CentOS. Any CentOS version is accepted now.
 # 27-Aug-09 WD5M: Replaced echo-install with beta version that had been under test.
 #                 This version leaves TBD installed in default locations for easier upgrades.
+# 06-Mar-10 WD5M: For ECHO_PRE convert "*" or "#" to letters, convert letters to uppercase, delete unwanted chars.
 ########################################################################
 #
 # MUST BE RUN AS ROOT
@@ -492,6 +493,8 @@ ECHO_PRE=""
 while [ ${#ECHO_PRE} -lt 1 ] || [ ${#ECHO_PRE} -gt 8 ]; do
   echo -n "Enter the EchoLink DTMF prefix - Any DTMF starting with this will be treated as an EchoLink Call "
   echo -n "(e.g. S or P or P123): " ; read ECHO_PRE
+  # Convert "*" or "#" to letters. Convert letters to uppercase for DTMF decoding. Delete unwanted chars.
+  ECHO_PRE=`echo "$ECHO_PRE" | tr '*#' 'SP' | tr [:lower:] [:upper:] | tr -d [:blank:][:punct:][:space:]\a\b\f\n\r\t\vE-OQRT-Z`
  
   CHECK=`echo "$ECHO_PRE" | awk '{ if ( $0 ~/\*/ || $0 ~/\#/ ) print "BAD" }'`
 
