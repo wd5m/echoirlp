@@ -37,6 +37,7 @@
 # 27-Aug-09 WD5M: Replaced echo-install with beta version that had been under test.
 #                 This version leaves TBD installed in default locations for easier upgrades.
 # 06-Mar-10 WD5M: For ECHO_PRE convert "*" or "#" to letters, convert letters to uppercase, delete unwanted chars.
+# 15-Apr-10 WD5M: Stop adding call to echo_update for rsync in custom.cron. EchoIRLP does not provide rsync updates.
 ########################################################################
 #
 # MUST BE RUN AS ROOT
@@ -1197,30 +1198,6 @@ fi
 #    end rc.irlp edit                 #
 #######################################
 
-#######################################
-#  Adding rsync entry to custom.crons #
-#######################################
-echo "########################################"
-echo "##### Install Step: 11 - Adding rsync entry to custom.crons"
-echo "########################################"
-if ! (`grep echo_update /home/irlp/custom/custom.crons &>/dev/null`) ; then
-  echo -n "Adding rsync entry to custom.crons ... "
-  HOUR=$[ $RANDOM % 23 ]
-  MIN=$[ $RANDOM % 60 ]
-  if [ "$MIN" -le "9" ] ; then MIN=0$MIN ; fi
-  cat <<-EOT >> /home/irlp/custom/custom.crons
-	#
-	# Update EchoIRLP filesystem from EchoIRLP server
-	$MIN $HOUR * * * (/home/EchoIRLP/scripts/echo_update files &>/dev/null)
-EOT
-  echo "[ DONE ]"
-else
-  echo "NOTE: custom.crons already contains 'echo_update files' entry."
-fi
-
-########################################
-# Finished rsync entry to custom.crons #
-########################################
 
 /bin/chown repeater.repeater /home/EchoIRLP/ -R
 /bin/chmod +x $CUSTOM/*
