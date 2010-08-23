@@ -12,6 +12,6 @@ The integration of IRLP and EchoLink into a single conference provides a high pe
 = Requirements =
 
 
-As of version 2 of the integrated conference, the supporting scripts are now supplied with the current IRLP reflector code.  All that is required is to download and install thebridge and/or thelinkbox, and configure it.  Documentation is available for IRLP reflector owners who wish to add EchoLink support to their system.
+As of version 2 of the integrated conference, the supporting scripts are now supplied with the current IRLP reflector code.  All that is required is to download and install [theBridge] and/or [theLinkbox], and configure it.  Documentation is available for IRLP reflector owners who wish to add EchoLink support to their system.
 
-Version 2 of the integrated conference supports multiple EchoLink channels, full duplex transcoding channels, and IRLP only channels using thebridge or thelinkbox.
+Version 2 of the integrated conference supports multiple EchoLink channels, full duplex transcoding channels, and IRLP only channels using [theBridge] or [theLinkbox].
