@@ -6,7 +6,7 @@
   # Your IRLP node must be running CentOS 4, CentOS 5, or Debian versions of IRLP.
   # Your node must have the compiler (GCC) and development software installed. This may not have been installed from the latest IRLP Linux software CDROM unless you chose to install everything.
   # You must have used the Windows EchoLink client to register your EchoLink node. Your EchoLink node must be a -R (repeater) or -L (link) radio node. Once you have your EchoLink node working on the Windows client, you will use that configuration information in EchoIRLP install. 
-  UPDATE: The TBD software in EchoIRLP may register your EchoLink node now. But link the Windows version, you must wait for the EchoLink system to enable or confirm the registration.
+  UPDATE: The TBD software in EchoIRLP may register your EchoLink node now. But like the Windows version, you must wait for the EchoLink system to enable or confirm the registration.
   NOTE: It is recommended that you make a backup copy of IRLP using the script /home/irlp/scripts/backup_for_reinstall, or just make copies of these IRLP files.
 
 {{{
