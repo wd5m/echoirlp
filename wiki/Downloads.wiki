@@ -2,7 +2,7 @@
 
 = Downloads =
 
-Refer to the installation instructions page for details on installing EchoIRLP. 
+Refer to the [https://code.google.com/p/echoirlp/wiki/InstallingEchoIRLP installation instructions page] for details on installing EchoIRLP. 
 
 == Useful Files ==
 
