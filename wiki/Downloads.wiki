@@ -6,7 +6,7 @@ Refer to the installation instructions page for details on installing EchoIRLP.
 
 == Useful Files ==
 
-  * [https://code.google.com/p/echoirlp/source/browse/trunk/install/echo-install-debian] - EchoIRLP install script modified to include the Debian IRLP version
+  * [https://code.google.com/p/echoirlp/source/browse/trunk/install/echo-install-debian echo-install-debian] - EchoIRLP install script modified to include the Debian IRLP version
   * [https://echoirlp.googlecode.com/files/echo-install echo-irlp-install] - The old echo_install script to install EchoIRLP
   * [https://echoirlp.googlecode.com/files/userdata.txt.example.txt userdata.txt] - example or guide
   * [https://echoirlp.googlecode.com/files/echo_environment.example.txt echo_environment] - example or guide
