@@ -20,7 +20,7 @@
 ==Steps to install EchoIRLP software on your IRLP system:==
 
   # login as root
-  # wget -N http://echoirlp.googlecode.com/svn/trunk/install/echo-install
+  # wget -N http://echoirlp.googlecode.com/svn/trunk/install/echo-install-debian
   # chmod +x ./echo-install
   # ./echo-install
   # Answer the prompts.
