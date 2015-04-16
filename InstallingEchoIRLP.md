@@ -1,0 +1,35 @@
+# Basic steps to install EchoIRLP #
+
+## Prerequisites: ##
+
+  1. IRLP must already be installed and fully configured and working. EchoIRLP uses IRLP code.
+  1. Your IRLP node must be running CentOS 4, CentOS 5, or Debian versions of IRLP.
+  1. Your node must have the compiler (GCC) and development software installed. This may not have been installed from the latest IRLP Linux software CDROM unless you chose to install everything.
+  1. You must have used the Windows EchoLink client to register your EchoLink node. Your EchoLink node must be a -R (repeater) or -L (link) radio node. Once you have your EchoLink node working on the Windows client, you will use that configuration information in EchoIRLP install.
+> UPDATE: The TBD software in EchoIRLP may register your EchoLink node now. But like the Windows version, you must wait for the EchoLink system to enable or confirm the registration.
+> NOTE: It is recommended that you make a backup copy of IRLP using the script /home/irlp/scripts/backup\_for\_reinstall, or just make copies of these IRLP files.
+
+```
+  /home/irlp/custom/rc.irlp
+  /home/irlp/custom/custom_decode
+  /home/irlp/custom/custom_on
+  /home/irlp/custom/custom_off
+  /home/irlp/custom/environment
+```
+
+## Steps to install EchoIRLP software on your IRLP system: ##
+
+  1. login as root
+  1. wget -N `http://echoirlp.googlecode.com/svn/trunk/install/echo-install-debian`
+  1. chmod +x ./echo-install
+  1. ./echo-install
+  1. Answer the prompts.
+  1. Restart IRLP by running /home/irlp/custom/rc.irlp
+
+Test by connecting to the EchoLink **ECHOTEST** service, EchoLink node 9999.
+
+## Known Issues ##
+
+  * Some have reported install failures, where the symptom is an empty tbd.conf file. So far, we have not been able to debug this. When this occurs, try installing again.
+
+Anyone may browse and view the EchoIRLP code by opening their browser to http://code.google.com/p/echoirlp/

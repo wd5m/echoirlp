@@ -1,0 +1,17 @@
+#Enabling EchoLink on IRLP reflectors.
+
+# Introduction #
+
+It is possible to create a conference server that supports both IRLP and EchoLink.  This requires a standard IRLP reflector to be installed, before EchoLink capability can be added.
+
+
+# Details #
+
+The integration of IRLP and EchoLink into a single conference provides a high performance and transparent bridging between all connected systems.  IRLP nodes will receive all traffic from the conference and hear all other stations, just like on a standard reflector channel.  EchoLink nodes see a normal conference, except that the IRLP nodes appear in the connected station list as stnXXXX, where XXXX is the IRLP node number.  IRLP nodes can also be muted by EchoLink sysops.
+
+# Requirements #
+
+
+As of version 2 of the integrated conference, the supporting scripts are now supplied with the current IRLP reflector code.  All that is required is to download and install [theBridge](theBridge.md) and/or [theLinkbox](theLinkbox.md), and configure it.  Documentation is available for IRLP reflector owners who wish to add EchoLink support to their system.
+
+Version 2 of the integrated conference supports multiple EchoLink channels, full duplex transcoding channels, and IRLP only channels using [theBridge](theBridge.md) or [theLinkbox](theLinkbox.md).

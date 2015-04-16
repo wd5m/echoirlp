@@ -1,0 +1,8 @@
+# Introduction #
+
+Thebridge is a EchoLink/IRLP compatable conference bridge (reflector) that runs under various versions of Unix as well as Windows.  theBridge includes a scripting capability that that allows users to extend its operation by the addition of user written scripts.  The EchoIRLP project uses this capability to use thebridge as a prototocol converter between the IRLP and EchoLink protocols.
+
+# Links #
+
+  * theBridge home - http://cqinet.sf.net
+  * theBridge commands - [tbdcommands](tbdcommands.md)
