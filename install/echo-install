@@ -38,28 +38,43 @@
 #                 This version leaves TBD installed in default locations for easier upgrades.
 # 06-Mar-10 WD5M: For ECHO_PRE convert "*" or "#" to letters, convert letters to uppercase, delete unwanted chars.
 # 15-Apr-10 WD5M: Stop adding call to echo_update for rsync in custom.cron. EchoIRLP does not provide rsync updates.
-########################################################################
+# 29-Nov-12 VE7LTD: Major rebuild to add support for Debian installs, and remove old Redhat/Fedora installs.
+#                   This is because the repositories for the RPMs have all been removed and yum installs will
+#                   not even run for anything older than CentOS 4/5. 
+#                   - Removed check for ncftpget (not used)
+#                   - Removed reference to rsync (no rsync server used)
+#                   - Cleaned up program checking code for GCC/MAKE and added support for apt-get/debian
+#                   - Fixed some speeling mistaykes
+#                   - Reworded some information messages
+#                   - Added support for init.d script that is compatible with Debian/lsb
+#                   - Removed absolute paths to su, chmod, and chown to make script more compatible
+#                   - Updated to use thebrigde-1.08
+# 17-DEC-14 WD5M: Saved as echo-install-debian
+#                 Added "ln -s /bin/pidof /sbin/pidof" for Debian installs
+#                 Use tbd version 1.09
+# 10-Jun-16 VK3JED: Changed script to support new GitHub repository, because Google Code has been closed down.
+#########################################################################
 #
 # MUST BE RUN AS ROOT
 #
-if [ `/usr/bin/whoami` != "root" ] ; then
+
+if [ `whoami` != "root" ] ; then
   echo "This program must be run as user ROOT!"
   exit 1
 fi
 
-#Sets the IP of the EchoIRLP server
-SERVERIP=redhat.irlp.net
 #The IP/name of the source web server.
-SRCIP="echoirlp.googlecode.com"
+SRCIP="github.com"
+
 #The source directory on the source web server.
-SRCDIR="/svn/trunk/install/"
+SRCDIR="/wd5m/echoirlp/raw/master/install/"
 
 #Sets the install directory (/home/irlp required)
 ID=/home/EchoIRLP
 CUSTOM=$ID/custom
 ENVFILE=$CUSTOM/echo_environment
 SRC=/usr/src
-TBD=thebridge-1.06.tgz
+TBD=thebridge-1.09.tgz
 TBDCNV=tbdcnv-0.03.tgz
 
 clear
@@ -69,15 +84,12 @@ cat <<-EOT
 	------------------------------------------------------------------------
 	This program installs the EchoIRLP software and sets up your EchoIRLP
 	parameters. 
-
         Requirements:
-        You must have IRLP installed and fully functional.
-        You must have previously registerd the intended callsign and password
-        with EchoLink.
-
-        NOTE: The IRLP volunteer support team WILL NOT provide support after
-              installing EchoIRLP.
-
+        - You must have IRLP installed and fully functional.
+        - You must have previously registered the intended callsign and 
+          password with EchoLink.
+        NOTE: The IRLP volunteer support team provide only limited 
+              support after installing customizations like EchoIRLP.
 	NOTE: You must have installed the GNU GCC compiler and the rest of the
 	      Linux development subsystem. If they are not already installed,
 	      this installation script will attempt to install them for you.
@@ -88,7 +100,7 @@ cat <<-EOT
 	      shifted to the correct tense by the install script.
 	------------------------------------------------------------------------
 EOT
-echo -n "Press ENTER to continue or CTRL-C to cancel : " ; read
+echo -n "Press ENTER to continue or CTRL-C to cancel : " ; read YESNO
 clear
 cat <<-EOT
 	------------------------------------------------------------------------
@@ -98,31 +110,22 @@ EOT
 
 # I "borrowed" this section of the script from install-ra --kc6hur
 
-# THIS CHECKS FOR REDHAT/FEDORA VERSION
+# THIS CHECKS FOR CENTOS/DEBIAN
 
 R=""
-if [ -f /etc/redhat-release ]; then
-  R=`cat /etc/redhat-release | cut -d' ' -f5`
-
-  # Detects CentOS systems
-  if [ -z $R ] ; then
-#  R="CentOS_`cat /etc/redhat-release | cut -d' ' -f3`"
+if [ -f /etc/redhat-release ] && (cat /etc/redhat-release | grep CentOS >/dev/null) ; then
   R="CentOS"
-  fi
-
 fi
 
-if [ -f /etc/fedora-release ]; then
-  R="fc`cat /etc/redhat-release | cut -d' ' -f4`"
+if [ -f /etc/debian_version ]; then
+  R="Debian"
 fi
 
-if [ "$R" = "7.3" ] || [ "$R" = "9" ] ; then
-      echo "The script has detected you are running RedHat $R."
-
-elif [ "$R" = "fc3" ] || [ "$R" = "fc5" ] ; then
-      echo "The script has detected you are running Fedora $R."
-elif [ "$R" = "CentOS" ] ; then
+if [ "$R" = "CentOS" ] ; then
       echo "The script has detected you are running $R."
+elif [ "$R" = "Debian" ] ; then
+      echo "The script has detected you are running $R."
+      ln -s /bin/pidof /sbin/pidof
 else
       echo "The script could not detect an IRLP supported version of Linux." 
       echo "If you are not running an IRLP supported distribution, please read every"
@@ -134,228 +137,35 @@ else
       exit 1
 fi
 
-if ! (awk --version > /dev/null 2>&1) ; then
-clear
-cat <<-EOT
-	------------------------------------------------------------------------
-	                      EchoIRLP Installation Script
-	------------------------------------------------------------------------
-	The script has detected that the string language AWK is not installed.
+#### VE7LTD Nov 28, 2012 ###########################################################
+# Performs software checks for awk, sed, make, wget, and gcc. If they don't exist, #
+# we try to install them using yum or apt-get. This only works for programs that   #
+# return 0 to the command <program --version>                                      #
+####################################################################################
 
-	This is required for the echo-install to continue. Make sure you
-	installed all of the packages that are required in the install.
-
-	------------------------------------------------------------------------
-
-	Script Terminated
-EOT
-  exit 1
-else
-  echo "String Language (awk) detected ...      [  OK  ]"
-fi
-
-#THIS CHECKS TO MAKE SURE NCFTPGET IS INSTALLED
-if ! [ -f /usr/bin/ncftpget ] ; then
-  echo "The script has detected that the FTP client NCFTPGET is not installed."
-  echo
-  echo "This is required for the echoirlp-install to continue. Make sure you"
-  echo "installed all of the packages that are required in the install."
-  echo
-  echo -n "Press ENTER to exit."; read
-  exit 1
-else
-  echo "FTP Client NCFTPGET detected OK."
-fi
-
-#THIS CHECKS TO MAKE SURE WGET IS INSTALLED
-if ! (wget --version > /dev/null 2>&1) ; then
-  echo "The script has detected that the web browser wget is not installed."
-  echo
-  echo "This is required for the echoirlp-install to continue. Make sure you"
-  echo "installed all of the packages that are required in the install."
-  echo
-  echo -n "Press ENTER to exit."; read
-  exit 1
-else
-  echo "Web Browser WGET detected OK."
-fi
-
-#####
-##### Redhat 7.3
-#####
-if [ "$R" = "7.3" ] ; then
-  if (rpm -q yum &>/dev/null) ; then
-    echo "Update Manager (yum) detected ...       [  OK  ]"
-  else
-    clear
-    cat <<-EOT
-	------------------------------------------------------------------------
-	                      EchoIRLP Installation Script
-	------------------------------------------------------------------------
-	Installing "yum" for RedHat 7.3 ...
-	Downloading the files from the server ...
-	EOT
-    ncftpget ftp.irlp.net /tmp /pub/remote/yum.conf.73.patch /pub/remote/httpd.conf.73.patch
-
-    echo
-    echo "- Installing gnupg, python, rpm-python, and yum ... "
-    rpm -Uh http://download.fedoralegacy.org/redhat/7.3/updates/i386/gnupg-1.0.7-13.i386.rpm 
-    rpm -Uh http://download.fedoralegacy.org/redhat/7.3/updates/i386/python-1.5.2-43.73.i386.rpm 
-    rpm -Uh http://download.fedoralegacy.org/redhat/7.3/os/i386/rpm-python-4.0.4-7x.18.i386.rpm 
-    rpm -Uh http://download.fedoralegacy.org/redhat/7.3/os/i386/patch-2.5.4-12.i386.rpm
-    rpm -Uh http://download.fedoralegacy.org/redhat/7.3/legacy-utils/i386/yum-1.0.3-6.0.7.x.legacy.noarch.rpm 
-
-    echo
-    echo -n "- Importing GPG keys for YUM to run ...."
-    gpg --import /usr/share/doc/yum-1.0.3/*GPG-KEY 
-    gpg --import /usr/share/doc/yum-1.0.3/*GPG-KEY 
-    echo "done."
-
-    echo
-    echo -n "- Editing the yum.conf file to allow kernel update to come down ...."
-    patch /etc/yum.conf /tmp/yum.conf.73.patch
-
-    echo
-    echo "- Performing YUM update (THIS WILL TAKE A WHILE - 20-40 mins)"
-    echo "  DO NOT press CTRL-C unless you are sure it is stalled."
-    echo
-    echo "Press ENTER to continue, or CTRL-C to exit." ; read
-    yum -y update
-    echo "  YUM update complete"
-
-    echo
-    echo -n "- Editing the yum.conf file to block kernel updates ...."
-    patch -R /etc/yum.conf /tmp/yum.conf.73.patch
-    rm -r /tmp/yum.conf.*.patch
-
-    echo
-    echo "- Setting the YUM updater to run once per day ...."
-    chkconfig yum on 
-    echo -n "  "
-    service yum start
-  fi
-#####
-##### REDHAT 9
-#####
-elif [ "$R" = "9" ] ; then
-  if (rpm -q yum &>/dev/null) ; then
-    echo "Update Manager (yum) detected ...       [  OK  ]"
-  else
-    clear
-    cat <<-EOT
-	------------------------------------------------------------------------
-	                      EchoIRLP Installation Script
-	------------------------------------------------------------------------
-	Installing \"yum\" for RedHat 9 ...
-	Downloading the files from the server ...
-	EOT
-    ncftpget ftp.irlp.net /tmp /pub/remote/yum.conf.9.patch /pub/remote/httpd.conf.9.patch
-
-    echo
-    echo "- Installing gnupg, libxml2(python), and yum ... "
-    rpm -Uh http://download.fedoralegacy.org/redhat/9/updates/i386/gnupg-1.2.1-9.i386.rpm 
-    rpm -Uh http://download.fedoralegacy.org/redhat/9/os/i386/libxml2-2.5.4-1.i386.rpm
-    rpm -Uh http://download.fedoralegacy.org/redhat/9/os/i386/libxml2-python-2.5.4-1.i386.rpm
-    rpm -Uh http://download.fedoralegacy.org/redhat/9/legacy-utils/i386/yum-2.0.5-0.9.2.legacy.noarch.rpm
-    rpm -Uh http://download.fedoralegacy.org/redhat/9/os/i386/patch-2.5.4-16.i386.rpm
-
-    echo
-    echo -n "- Importing GPG keys for YUM to run ...."
-    rpm --import http://www.fedoralegacy.org/FEDORA-LEGACY-GPG-KEY
-    rpm --import http://www.redhat.com/security/db42a60e.txt
-    echo "done."
-
-    echo
-    echo -n "- Editing the yum.conf file to allow kernel update to come down ...."
-    patch /etc/yum.conf /tmp/yum.conf.9.patch
-
-    echo
-    echo "- Performing YUM update (THIS WILL TAKE A WHILE - 20-40 mins)"
-    echo "  DO NOT press CTRL-C unless you are sure it is stalled."
-    echo
-    echo "Press ENTER to continue, or CTRL-C to exit." ; read
-    yum -y update
-    echo "  YUM update complete"
-
-    echo
-    echo -n "- Editing the yum.conf file to block kernel updates ...."
-    patch -R /etc/yum.conf /tmp/yum.conf.9.patch
-    rm -r /tmp/yum.conf.*.patch
-
-    echo
-    echo "- Setting the YUM updater to run once per day ...."
-    chkconfig yum on 
-    echo -n "  "
-    service yum start
-  fi
-#####
-##### FEDORA CORE 3
-#####
-elif [ "$R" = "fc3" ] ; then
-  echo "FC3 already has yum installed"
-elif [ "$R" = "fc5" ] ; then
-  echo "FC5 already has yum installed"
-elif [ "$R" = "CentOS" ] ; then
-  echo "$R already has yum installed"
-fi
-#####
-##### Check for/Install SED
-#####
-if ! (rpm -q sed &>/dev/null) ; then
-  echo "WARNING: String Editor (sed) not found"
-  echo "Installing String Editor (sed) ..."
-  yum -y install sed
-fi
-echo -n "String Editor (sed) detected ...        "
-if (rpm -q sed &>/dev/null) ; then
-  echo "[  OK  ]"
-else
-  echo "[ FAIL ]"
-  echo "String Edior (sed) not found and could not be installed."
-  echo ""
-  echo "Script Terminated"
-  exit 1
-fi
-
-########################################################################
-# Make sure GCC and MAKE are available
-########################################################################
-#####
-##### Check for/Install GCC
-#####
-COMPILER=gcc
 echo ""
-if ! (rpm -q $COMPILER &>/dev/null) ; then
-  echo "WARNING: Missing - ${COMPILER}"
-  echo "Installing Compiler (gcc) ..."
-  yum -y install $COMPILER
-fi
-echo -n "Compiler (gcc) detected ...             "
-if (rpm -q $COMPILER &>/dev/null) ; then
-  echo "[  OK  ]"
-else
-  echo "[ FAIL ]"
-  echo "Compiler (gcc) was not found and could not be installed."
-  echo
-  echo "Script Terminated"
-fi
-#####
-##### Check for/Install MAKE
-#####
-if ! (rpm -q make &>/dev/null) ; then
-  echo "WARNING: Missing - make"
-  echo "Installing MAKE Program (make) ..."
-  yum -y install make
-fi
-echo -n "MAKE (make) detected ...                "
-if (rpm -q make &>/dev/null) ; then
-  echo "[  OK  ]"
-else
-  echo "[ FAIL ]"
-  echo "MAKE was not found and could not be installed."
-  echo
-  echo "Script Terminated"
-fi
+for i in gcc make awk sed wget; do
+  if ! ($i --version &>/dev/null) ; then
+    echo "WARNING: Missing program - ${i}"
+    echo "Installing program $i ..."
+
+    if [ $R = CentOS ] ; then 
+      yum -y install $i >/dev/null 2>&1
+    else
+      apt-get -y install $i >/dev/null 2>&1
+    fi
+  fi
+
+  echo -n "Detecting program $i ...             "
+  if ($i --version &>/dev/null) ; then
+    echo "[  OK  ]"
+  else
+    echo "[ FAIL ]"
+    echo "Program $i was not found and could not be installed."
+    echo
+    echo "Script Terminated"
+  fi
+done
 
 ########################################################################
 
@@ -492,7 +302,8 @@ done
 echo ""
 ECHO_PRE=""
 while [ ${#ECHO_PRE} -lt 1 ] || [ ${#ECHO_PRE} -gt 8 ]; do
-  echo -n "Enter the EchoLink DTMF prefix - Any DTMF starting with this will be treated as an EchoLink Call "
+  echo "Enter the EchoLink DTMF prefix - Any DTMF starting with this will be treated as an EchoLink Call."
+  echo "Valid digits are 0 through 9, A, B, C, S (* - star), and P (# - pound)."
   echo -n "(e.g. S or P or P123): " ; read ECHO_PRE
   # Convert "*" or "#" to letters. Convert letters to uppercase for DTMF decoding. Delete unwanted chars.
   ECHO_PRE=`echo "$ECHO_PRE" | tr '*#' 'SP' | tr [:lower:] [:upper:] | tr -d [:blank:][:punct:][:space:]\a\b\f\n\r\t\vE-OQRT-Z`
@@ -678,8 +489,15 @@ if [ "$TBD_OK" = "Y" ] ; then
   rm -f $TBD_HOME/tbd
   rm -f /usr/local/libexec/tbd
   rm -f /usr/sbin/tbd
-  cd RedHat
-  ./install
+
+# Have to direct to the right folder for the OS being used
+  if [ "$R" = CentOS ] ; then
+    cd RedHat
+    ./install
+  elif [ "$R" = Debian ] ; then
+    cd Debian
+    ./install
+  fi
   ln -s /usr/local/bin/tbdcmd $TBD_HOME/tbdcmd
   ln -s /usr/local/libexec/tbd $TBD_HOME/tbd
   if [ ! -d $TBD_DATA ] ; then
@@ -716,16 +534,6 @@ if [ "$ECHO_OK" = "Y" ] ; then
   rm -f $ID/*.tgz &>/dev/null
   echo "[ DONE ]"
  
-  # This runs an rsync to install/update the files on the node to what is
-  # currently on the server, to make sure we are not too far behind in
-  # updates. Some installs from the CD will be so old they will not even
-  # have the right code to update from a viable server, and will require
-  # rebuilding from the server.
-
-  #echo "Installing/updating EchoIRLP files ... "
-  #/home/irlp/bin/rsync -Wazv $SERVERIP::echoirlp $ID
-  #echo "[ DONE ]"
-  sleep 5
 fi
 
 ##########################################
@@ -977,7 +785,6 @@ echo "[ DONE ]"
 if ! (`grep /home/EchoIRLP/custom/echo_environment /home/irlp/custom/environment &>/dev/null`) ; then
   echo -n "Modifying /home/irlp/custom/environmnet to source the EchoIRLP environment ... "
   cat <<-EOT >> /home/irlp/custom/environment
-
 if [ -x /home/EchoIRLP/custom/echo_environment ] ; then
         source /home/EchoIRLP/custom/echo_environment
 fi
@@ -1089,8 +896,8 @@ if ! `grep echo_end /home/irlp/custom/custom_decode &>/dev/null` ; then
    echo "" >> /home/irlp/custom/custom_decode
    echo "exit 0 " >> /home/irlp/custom/custom_decode
 
-   /bin/chown repeater.repeater /home/irlp/custom/custom_decode
-   /bin/chmod 755 /home/irlp/custom/custom_decode
+   chown repeater.repeater /home/irlp/custom/custom_decode
+   chmod 755 /home/irlp/custom/custom_decode
    echo "[ DONE ]"
 else
    echo "NOTE: /home/irlp/custom/custom_decode already contains EchoIRLP calls."
@@ -1104,7 +911,7 @@ fi
 # Set custom_decode for status update # 
 #######################################
 echo "########################################"
-echo "##### Install Step: 9  - Set custom_decode for status update"
+echo "##### Install Step: 9  - Set custom_on for status update"
 echo "########################################"
 if ! (`grep echo_status /home/irlp/custom/custom_on &>/dev/null`) ; then
    echo -n "Create/modify /home/irlp/custom/custom_on ... "
@@ -1114,7 +921,6 @@ if ! (`grep echo_status /home/irlp/custom/custom_on &>/dev/null`) ; then
 if [ -x "\$ECHO_SCRIPT/echo_status" ] ; then
         "\$ECHO_SCRIPT/echo_status"
 fi
-
 EOT
    echo "[ DONE ]"
 else
@@ -1129,7 +935,6 @@ if ! (`grep echo_status /home/irlp/custom/custom_off &>/dev/null`) ; then
 if [ -x "\$ECHO_SCRIPT/echo_status" ] ; then
         "\$ECHO_SCRIPT/echo_status"
 fi
-
 EOT
    echo "[ DONE ]"
 else
@@ -1150,10 +955,10 @@ mv -f /home/irlp/custom/environment.temp /home/irlp/custom/environment
 sed "s/\export CUSTOM_OFF=NO/export CUSTOM_OFF=YES/" /home/irlp/custom/environment > /home/irlp/custom/environment.temp
 mv -f /home/irlp/custom/environment.temp /home/irlp/custom/environment
 
-/bin/chown repeater.repeater /home/irlp/custom/custom_on
-/bin/chmod 755 /home/irlp/custom/custom_on
-/bin/chown repeater.repeater /home/irlp/custom/custom_off
-/bin/chmod 755 /home/irlp/custom/custom_off
+chown repeater.repeater /home/irlp/custom/custom_on
+chmod 755 /home/irlp/custom/custom_on
+chown repeater.repeater /home/irlp/custom/custom_off
+chmod 755 /home/irlp/custom/custom_off
 
 #######################################
 # End custom_decode for status update # 
@@ -1171,7 +976,7 @@ if ! (`grep "Starting the Bridge" /home/irlp/custom/rc.irlp &>/dev/null`) ; then
   cat <<-EOT >> /home/irlp/custom/rc.irlp
 	
 	echo "Starting the Bridge..."
-	/sbin/service tbd restart
+	service tbd restart
 	sleep 5
 EOT
   echo "[ DONE ]"
@@ -1182,10 +987,9 @@ fi
 if ! (`grep "Enabling connections to the EchoLink Node" /home/irlp/custom/rc.irlp &>/dev/null`) ; then
    echo -n "Adding EchoIRLP startup to /home/irlp/custom/rc.irlp ... "
    cat <<-EOT >> /home/irlp/custom/rc.irlp
-
 if [ -x "\$ECHO_SCRIPT/echo_enable" ] ; then
 	echo -n "Enabling connections to the EchoLink Node..."
-	/bin/su - -c "\$ECHO_SCRIPT/echo_enable" repeater &>/dev/null
+	su - -c "\$ECHO_SCRIPT/echo_enable" repeater &>/dev/null
 	echo "done!"
 fi
 EOT
@@ -1199,20 +1003,18 @@ fi
 #######################################
 
 
-/bin/chown repeater.repeater /home/EchoIRLP/ -R
-/bin/chmod +x $CUSTOM/*
+chown -R repeater.repeater /home/EchoIRLP/
+chmod +x $CUSTOM/*
 
 cat <<-EOT
 	########################################################################
 	  ALL DONE!!!
 	########################################################################
 	  To start using your new EchoIRLP installation you must restart IRLP.
-	  While logged in as root, run the following command:
-	      /home/irlp/custom/rc.irlp
-	
-	                                 ENJOY!
-	########################################################################
+	  Press ENTER to restart IRLP, or CTRL-C to exit without IRLP restart :
 EOT
 
+read NULL
+clear
+/home/irlp/custom/rc.irlp
 ###############################
-
