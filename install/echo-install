@@ -53,6 +53,7 @@
 #                 Added "ln -s /bin/pidof /sbin/pidof" for Debian installs
 #                 Use tbd version 1.09
 # 10-Jun-16 VK3JED: Changed script to support new GitHub repository, because Google Code has been closed down.
+# 08-Nov-16 WD5M: Added --no-check-certificate to wget commands.
 #########################################################################
 #
 # MUST BE RUN AS ROOT
@@ -196,7 +197,7 @@ echo
 echo "Downloading EchoIRLP software tarfiles ... "
 
 if [ ! -s $ID/Base_Install.tgz ] ; then
-  wget -N -T 30 -q -O "${ID}/Base_Install.tgz" "http://${SRCIP}${SRCDIR}/Base_Install.tgz"
+  wget --no-check-certificate -N -T 30 -q -O "${ID}/Base_Install.tgz" "http://${SRCIP}${SRCDIR}/Base_Install.tgz"
   EC=$?
   if [ $EC -ne 0 ] ; then
     echo "ERROR: wget returned error $EC while downloading Base_Install.tgz"
@@ -206,7 +207,7 @@ else
   echo "NOTE: File already exists - ${ID}/Base_Install.tgz"
 fi
 if [ ! -s ${SRC}/${TBD} ] ; then
-  wget -N -T 30 -q -O "${SRC}/${TBD}" "http://${SRCIP}${SRCDIR}/${TBD}"
+  wget --no-check-certificate -N -T 30 -q -O "${SRC}/${TBD}" "http://${SRCIP}${SRCDIR}/${TBD}"
   EC=$?
   if [ $EC -ne 0 ] ; then
     echo "ERROR: wget returned error $EC while downloading ${TBD}"
@@ -216,7 +217,7 @@ else
   echo "NOTE: File already exists - ${SRC}/${TBD}"
 fi
 if [ ! -s $SRC/$TBDCNV ] ; then
-  wget -N -T 30 -q -O "${SRC}/${TBDCNV}" "http://${SRCIP}${SRCDIR}/${TBDCNV}"
+  wget --no-check-certificate -N -T 30 -q -O "${SRC}/${TBDCNV}" "http://${SRCIP}${SRCDIR}/${TBDCNV}"
   EC=$?
   if [ $EC -ne 0 ] ; then
     echo "ERROR: wget returned error $EC while downloading ${TBDCNV}"
