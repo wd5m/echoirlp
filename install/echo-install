@@ -53,6 +53,8 @@
 #                 Added "ln -s /bin/pidof /sbin/pidof" for Debian installs
 #                 Use tbd version 1.09
 # 10-Jun-16 VK3JED: Changed script to support new GitHub repository, because Google Code has been closed down.
+# 26-Oct-16 WD5M: Install theLinkBox in place of theBridge
+# 08-Nov-16 WD5M: Added --no-check-certificate to wget commands.
 #########################################################################
 #
 # MUST BE RUN AS ROOT
@@ -67,14 +69,14 @@ fi
 SRCIP="github.com"
 
 #The source directory on the source web server.
-SRCDIR="/wd5m/echoirlp/raw/master/install/"
+SRCDIR="/wd5m/echoirlp/raw/theLinkBox/install/"
 
 #Sets the install directory (/home/irlp required)
 ID=/home/EchoIRLP
 CUSTOM=$ID/custom
 ENVFILE=$CUSTOM/echo_environment
 SRC=/usr/src
-TBD=thebridge-1.09.tgz
+TLB=thelinkbox-0.55.tgz
 TBDCNV=tbdcnv-0.03.tgz
 
 clear
@@ -185,8 +187,8 @@ fi
 if [ ! -d $ID/scripts ] ; then
    mkdir $ID/scripts &>/dev/null
 fi
-if [ ! -d $ID/tbd ] ; then
-   mkdir $ID/tbd &>/dev/null
+if [ ! -d $ID/tlb ] ; then
+   mkdir $ID/tlb &>/dev/null
 fi
 echo "[ DONE ]"
 
@@ -196,7 +198,7 @@ echo
 echo "Downloading EchoIRLP software tarfiles ... "
 
 if [ ! -s $ID/Base_Install.tgz ] ; then
-  wget -N -T 30 -q -O "${ID}/Base_Install.tgz" "http://${SRCIP}${SRCDIR}/Base_Install.tgz"
+  wget --no-check-certificate -N -T 30 -q -O "${ID}/Base_Install.tgz" "http://${SRCIP}${SRCDIR}/Base_Install.tgz"
   EC=$?
   if [ $EC -ne 0 ] ; then
     echo "ERROR: wget returned error $EC while downloading Base_Install.tgz"
@@ -205,18 +207,18 @@ if [ ! -s $ID/Base_Install.tgz ] ; then
 else
   echo "NOTE: File already exists - ${ID}/Base_Install.tgz"
 fi
-if [ ! -s ${SRC}/${TBD} ] ; then
-  wget -N -T 30 -q -O "${SRC}/${TBD}" "http://${SRCIP}${SRCDIR}/${TBD}"
+if [ ! -s ${SRC}/${TLB} ] ; then
+  wget --no-check-certificate -N -T 30 -q -O "${SRC}/${TLB}" "http://${SRCIP}${SRCDIR}/${TLB}"
   EC=$?
   if [ $EC -ne 0 ] ; then
-    echo "ERROR: wget returned error $EC while downloading ${TBD}"
+    echo "ERROR: wget returned error $EC while downloading ${TLB}"
     exit 1
   fi
 else
-  echo "NOTE: File already exists - ${SRC}/${TBD}"
+  echo "NOTE: File already exists - ${SRC}/${TLB}"
 fi
 if [ ! -s $SRC/$TBDCNV ] ; then
-  wget -N -T 30 -q -O "${SRC}/${TBDCNV}" "http://${SRCIP}${SRCDIR}/${TBDCNV}"
+  wget --no-check-certificate -N -T 30 -q -O "${SRC}/${TBDCNV}" "http://${SRCIP}${SRCDIR}/${TBDCNV}"
   EC=$?
   if [ $EC -ne 0 ] ; then
     echo "ERROR: wget returned error $EC while downloading ${TBDCNV}"
@@ -227,12 +229,12 @@ else
 fi
 
 # if yes then make sure tarball is present - otherwise halt
-if [ ! -s ${SRC}/${TBD} ] ; then
-  TBD_OK="N"
-  echo "ERROR: File not found - ${SRC}/${TBD}"
+if [ ! -s ${SRC}/${TLB} ] ; then
+  TLB_OK="N"
+  echo "ERROR: File not found - ${SRC}/${TLB}"
   exit 0
 else 
-  TBD_OK="Y"
+  TLB_OK="Y"
   # check for tbdcnv zip file
   if [ ! -s ${SRC}/${TBDCNV} ] ; then
     echo "ERROR: File not found - ${SRC}/${TBDCNV}"
@@ -333,56 +335,56 @@ ECHO_SN_YN=""
 done
 #
 # The next two questions used to prompt the installer; however,
-# since we are installing TBD, we will just default the values
+# since we are installing TLB, we will just default the values
 # and not ask. The "Y" values were for the OLD EchoLink stuff.
 #
 ECHO_SERVERS_YN="N"
 ECHO_SC_YN="N"
 #
-# DO NOT CHANGE TBD_IP
+# DO NOT CHANGE TLB_IP
 #
-TBD_IP="127.0.0.1"
+TLB_IP="127.0.0.1"
 
 echo ""
-TBD_HOME="/home/EchoIRLP/tbd"
-echo -n "Where will tbd be installed (default /home/EchoIRLP/tbd): " ; read TBD_HM
-if [ "$TBD_HM" != "" ] ; then
-  TBD_HOME=$TBD_HM
+TLB_HOME="/home/EchoIRLP/tlb"
+echo -n "Where will tlb be installed (default /home/EchoIRLP/tlb): " ; read TLB_HM
+if [ "$TLB_HM" != "" ] ; then
+  TLB_HOME=$TLB_HM
 fi
 
 echo "" 
-TBD_DATA="/home/EchoIRLP/tbd/data"
-echo -n "Where will tbd data be kept (default /home/EchoIRLP/tbd/data): " ; read TBD_DA
-if ! [ "$TBD_DA" = "" ] ; then
-  TBD_DATA=$TBD_DA
+TLB_DATA="/home/EchoIRLP/tlb/data"
+echo -n "Where will tlb data be kept (default /home/EchoIRLP/tlb/data): " ; read TLB_DA
+if ! [ "$TLB_DA" = "" ] ; then
+  TLB_DATA=$TLB_DA
 fi
 
 echo ""
-TBD_PASS="password"
-echo -n "Enter the TBD RTP password (default = password): " ; read TBD_PA
-if ! [ "$TBD_PA" = "" ] ; then
-  TBD_PASS=$TBD_PA
+TLB_PASS="password"
+echo -n "Enter the TLB RTP password (default = password): " ; read TLB_PA
+if ! [ "$TLB_PA" = "" ] ; then
+  TLB_PASS=$TLB_PA
 fi
 
 echo ""
-TBD_ADMIN_PASS="password"
-echo -n "Enter the TBD admin password (default = password): " ; read TBD_ADMIN_PA
-if ! [ "$TBD_ADMIN_PA" = "" ] ; then
-  TBD_ADMIN_PASS=$TBD_ADMIN_PA
+TLB_ADMIN_PASS="password"
+echo -n "Enter the TLB admin password (default = password): " ; read TLB_ADMIN_PA
+if ! [ "$TLB_ADMIN_PA" = "" ] ; then
+  TLB_ADMIN_PASS=$TLB_ADMIN_PA
 fi
 
 echo ""
-TBD_SYSOP_PASS="password"
-echo -n "Enter the TBD sysop password (default = password): " ; read TBD_SYSOP_PA
-if ! [ "$TBD_SYSOP_PA" = "" ] ; then
-  TBD_SYSOP_PASS=$TBD_SYSOP_PA
+TLB_SYSOP_PASS="password"
+echo -n "Enter the TLB sysop password (default = password): " ; read TLB_SYSOP_PA
+if ! [ "$TLB_SYSOP_PA" = "" ] ; then
+  TLB_SYSOP_PASS=$TLB_SYSOP_PA
 fi
 
 echo ""
-TBD_EMAIL=""
-while [ ${#TBD_EMAIL} -lt 8 ] || [ ${#TBD_EMAIL} -gt 48 ]; do
-  echo -n "Enter an email address that EchoLink can contact you: " ; read TBD_EMAIL
-  if [ ${#TBD_EMAIL} -lt 8 ] || [ ${#TBD_EMAIL} -gt 48 ] ; then
+TLB_EMAIL=""
+while [ ${#TLB_EMAIL} -lt 8 ] || [ ${#TLB_EMAIL} -gt 48 ]; do
+  echo -n "Enter an email address that EchoLink can contact you: " ; read TLB_EMAIL
+  if [ ${#TLB_EMAIL} -lt 8 ] || [ ${#TLB_EMAIL} -gt 48 ] ; then
     echo "ERROR: The email address must be between 8 and 48 characters"
   fi
 done
@@ -404,11 +406,11 @@ if [ "$ECHO_IDLE_YN" = "y" ] || [ "$ECHO_IDLE_YN" = "Y" ] ; then
   ECHO_IDLE_CONF=`echo "$ECHO_IDLE_CONF" | tr '{a-z}' '{A-Z}'`
 fi
 
-TBD_MAX_USERS=2
+TLB_MAX_USERS=2
 
 echo ""
 # force case for call signs and echolink passwords
-ECHO_TBD_CALL=`echo "$ECHO_CALL" | tr [:upper:] [:lower:]`
+ECHO_TLB_CALL=`echo "$ECHO_CALL" | tr [:upper:] [:lower:]`
 ECHO_NODE_CALL=`echo "$ECHO_CALL" | tr [:lower:] [:upper:]`
 ECHO_PASSWORD=`echo "$ECHO_PASS" | tr [:lower:] [:upper:]`
 
@@ -445,50 +447,50 @@ if [ "$TBDCNV_OK" = "Y" ] ; then
   ./configure
   make
 # remove old binaries from previous install script method.
-  rm -f $TBD_HOME/tbdcnv
+  rm -f $TLB_HOME/tbdcnv
   rm -f /usr/local/bin/tbdcnv
   make install
-# link binary to EchoIRLP tbd directory
-  ln -s /usr/local/bin/tbdcnv $TBD_HOME/tbdcnv
+# link binary to EchoIRLP tlb directory
+  ln -s /usr/local/bin/tbdcnv $TLB_HOME/tbdcnv
   cd $ID
   rm -rf "$SRC"/"$TBD_CNV_DIR"
 fi
 
 #######################################
-#         install thebridge tarball   #
+#         install thelinkbox tarball   #
 #######################################
 
-if [ "$TBD_OK" = "Y" ] ; then
-  echo "Begin thebridge install"
+if [ "$TLB_OK" = "Y" ] ; then
+  echo "Begin thelinkbox install"
 
   cd "$SRC"
-  #TBD_FULL_NAME=`ls thebridge*`
-  TBD_FULL_NAME=$TBD
-  echo "unpacking $TBD_FULL_NAME"
-  tar -zxvf "$SRC"/"$TBD_FULL_NAME"
+  #TLB_FULL_NAME=`ls thelinkbox*`
+  TLB_FULL_NAME=$TLB
+  echo "unpacking $TLB_FULL_NAME"
+  tar -zxvf "$SRC"/"$TLB_FULL_NAME"
 
-  TBD_INIT_DIR=`ls -dxX thebridge* | cut  -f1`
-  echo "TBD_INIT_DIR = $TBD_INIT_DIR"
+  TLB_INIT_DIR=`ls -dxX thelinkbox* | cut  -f1`
+  echo "TLB_INIT_DIR = $TLB_INIT_DIR"
 
   # do make and configure stuff
-  cd "$TBD_INIT_DIR"
+  cd "$TLB_INIT_DIR"
   ./configure
   make
-  # copy thebridge documentation files
-  if [ ! -d $TBD_HOME/doc ] ; then
-    mkdir "$TBD_HOME/doc"
+  # copy thelinkbox documentation files
+  if [ ! -d $TLB_HOME/doc ] ; then
+    mkdir "$TLB_HOME/doc"
   fi
-  mv README $TBD_HOME/doc
-  mv COPYING $TBD_HOME/doc
-  mv ChangeLog $TBD_HOME/doc
-  mv SCRIPTING.txt $TBD_HOME/doc
-  mv ChangeLog $TBD_HOME/doc
+  mv README $TLB_HOME/doc
+  mv COPYING $TLB_HOME/doc
+  mv ChangeLog $TLB_HOME/doc
+  mv SCRIPTING.txt $TLB_HOME/doc
+  mv ChangeLog $TLB_HOME/doc
 # remove old binaries from previous install script method.
-  rm -f $TBD_HOME/tbdcmd
-  rm -f /usr/local/bin/tbdcmd
-  rm -f $TBD_HOME/tbd
-  rm -f /usr/local/libexec/tbd
-  rm -f /usr/sbin/tbd
+  rm -f $TLB_HOME/tlbcmd
+  rm -f /usr/local/bin/tlbcmd
+  rm -f $TLB_HOME/tlb
+  rm -f /usr/local/libexec/tlb
+  rm -f /usr/sbin/tlb
 
 # Have to direct to the right folder for the OS being used
   if [ "$R" = CentOS ] ; then
@@ -498,16 +500,16 @@ if [ "$TBD_OK" = "Y" ] ; then
     cd Debian
     ./install
   fi
-  ln -s /usr/local/bin/tbdcmd $TBD_HOME/tbdcmd
-  ln -s /usr/local/libexec/tbd $TBD_HOME/tbd
-  if [ ! -d $TBD_DATA ] ; then
-    mkdir "$TBD_DATA"
+  ln -s /usr/local/bin/tlbcmd $TLB_HOME/tlbcmd
+  ln -s /usr/local/libexec/tlb $TLB_HOME/tlb
+  if [ ! -d $TLB_DATA ] ; then
+    mkdir "$TLB_DATA"
   fi
   cd $ID
-  cp "$SRC"/"$TBD_INIT_DIR"/tbd.conf.sample $ID/custom/tbd.conf.temp
-  rm -f /usr/local/etc/tbd.conf
-  ln -s $ID/custom/tbd.conf /usr/local/etc/tbd.conf
-  rm -rf "$SRC"/"$TBD_INIT_DIR"
+  cp "$SRC"/"$TLB_INIT_DIR"/tlb.conf.sample $ID/custom/tlb.conf.temp
+  rm -f /usr/local/etc/tlb.conf
+  ln -s $ID/custom/tlb.conf /usr/local/etc/tlb.conf
+  rm -rf "$SRC"/"$TLB_INIT_DIR"
 fi
 
 #######################################
@@ -537,119 +539,119 @@ if [ "$ECHO_OK" = "Y" ] ; then
 fi
 
 ##########################################
-#         generate tbd.conf              #
+#         generate tlb.conf              #
 ##########################################
 echo "########################################"
-echo "##### Install Step: 3  - generate tbd.conf"
+echo "##### Install Step: 3  - generate tlb.conf"
 echo "########################################"
-echo "Creating $CUSTOM/tbd.conf : "
-cp -f "$CUSTOM"/tbd.conf.temp "$CUSTOM"/tbd.conf
+echo "Creating $CUSTOM/tlb.conf : "
+cp -f "$CUSTOM"/tlb.conf.temp "$CUSTOM"/tlb.conf
 
-  sed "s/ConferenceCall = W1AW/ConferenceCall = $ECHO_NODE_CALL/" "$CUSTOM"/tbd.conf > "$CUSTOM"/tbd.temp
-  mv -f "$CUSTOM"/tbd.temp "$CUSTOM"/tbd.conf
+  sed "s/ConferenceCall = W1AW/ConferenceCall = $ECHO_NODE_CALL/" "$CUSTOM"/tlb.conf > "$CUSTOM"/tlb.temp
+  mv -f "$CUSTOM"/tlb.temp "$CUSTOM"/tlb.conf
 echo 1
-  sed "s/ConferencePass = CW/ConferencePass = $ECHO_PASSWORD/" "$CUSTOM"/tbd.conf > "$CUSTOM"/tbd.temp
-  mv -f "$CUSTOM"/tbd.temp "$CUSTOM"/tbd.conf
+  sed "s/ConferencePass = CW/ConferencePass = $ECHO_PASSWORD/" "$CUSTOM"/tlb.conf > "$CUSTOM"/tlb.temp
+  mv -f "$CUSTOM"/tlb.temp "$CUSTOM"/tlb.conf
 echo 2
-  sed "s/ConferenceQth = Newington, Ct./ConferenceQth = $ECHO_LOCATION/" "$CUSTOM"/tbd.conf > "$CUSTOM"/tbd.temp
-  mv -f "$CUSTOM"/tbd.temp "$CUSTOM"/tbd.conf
+  sed "s/ConferenceQth = Newington, Ct./ConferenceQth = $ECHO_LOCATION/" "$CUSTOM"/tlb.conf > "$CUSTOM"/tlb.temp
+  mv -f "$CUSTOM"/tlb.temp "$CUSTOM"/tlb.conf
 echo 3
-  sed "s-WorkingDir = /usr/home/tbd-WorkingDir = $TBD_DATA-" "$CUSTOM"/tbd.conf > "$CUSTOM"/tbd.temp
-  mv -f "$CUSTOM"/tbd.temp "$CUSTOM"/tbd.conf
+  sed "s-WorkingDir = /usr/home/tlb-WorkingDir = $TLB_DATA-" "$CUSTOM"/tlb.conf > "$CUSTOM"/tlb.temp
+  mv -f "$CUSTOM"/tlb.temp "$CUSTOM"/tlb.conf
 echo 4
-  sed "s/EmailAdr = w1aw@arrl.net/EmailAdr = $TBD_EMAIL/" "$CUSTOM"/tbd.conf > "$CUSTOM"/tbd.temp
-  mv -f "$CUSTOM"/tbd.temp "$CUSTOM"/tbd.conf
+  sed "s/EmailAdr = w1aw@arrl.net/EmailAdr = $TLB_EMAIL/" "$CUSTOM"/tlb.conf > "$CUSTOM"/tlb.temp
+  mv -f "$CUSTOM"/tlb.temp "$CUSTOM"/tlb.conf
 echo 5
-  sed "s/;AdminPass = secret/;AdminPass = $TBD_ADMIN_PASS/" "$CUSTOM"/tbd.conf > "$CUSTOM"/tbd.temp
-  mv -f "$CUSTOM"/tbd.temp "$CUSTOM"/tbd.conf
+  sed "s/;AdminPass = secret/;AdminPass = $TLB_ADMIN_PASS/" "$CUSTOM"/tlb.conf > "$CUSTOM"/tlb.temp
+  mv -f "$CUSTOM"/tlb.temp "$CUSTOM"/tlb.conf
 echo 6
-  sed "s/;SysopPass = anothersecret/;SysopPass = $TBD_SYSOP_PASS/" "$CUSTOM"/tbd.conf > "$CUSTOM"/tbd.temp
-  mv -f "$CUSTOM"/tbd.temp "$CUSTOM"/tbd.conf
+  sed "s/;SysopPass = anothersecret/;SysopPass = $TLB_SYSOP_PASS/" "$CUSTOM"/tlb.conf > "$CUSTOM"/tlb.temp
+  mv -f "$CUSTOM"/tlb.temp "$CUSTOM"/tlb.conf
 echo 7
-  sed "s/;ConferenceID = My Conference server/ConferenceID = $ECHO_TBD_CALL/" "$CUSTOM"/tbd.conf > "$CUSTOM"/tbd.temp
-  mv -f "$CUSTOM"/tbd.temp "$CUSTOM"/tbd.conf
+  sed "s/;ConferenceID = My Conference server/ConferenceID = $ECHO_TLB_CALL/" "$CUSTOM"/tlb.conf > "$CUSTOM"/tlb.temp
+  mv -f "$CUSTOM"/tlb.temp "$CUSTOM"/tlb.conf
 echo 8
-  sed "s/Banner = Welcome to thebridge conference./Banner = Welcome to $ECHO_NODE_CALL EchoIRLP./" "$CUSTOM"/tbd.conf > "$CUSTOM"/tbd.temp
-  mv -f "$CUSTOM"/tbd.temp "$CUSTOM"/tbd.conf
+  sed "s/Banner = Welcome to thelinkbox conference./Banner = Welcome to $ECHO_NODE_CALL EchoIRLP./" "$CUSTOM"/tlb.conf > "$CUSTOM"/tlb.temp
+  mv -f "$CUSTOM"/tlb.temp "$CUSTOM"/tlb.conf
 echo 9
-  sed "s/Banner = Type \".help\" for a command list./Banner = $ECHO_NAME/" "$CUSTOM"/tbd.conf > "$CUSTOM"/tbd.temp
-  mv -f "$CUSTOM"/tbd.temp "$CUSTOM"/tbd.conf
+  sed "s/Banner = Type \".help\" for a command list./Banner = $ECHO_NAME/" "$CUSTOM"/tlb.conf > "$CUSTOM"/tlb.temp
+  mv -f "$CUSTOM"/tlb.temp "$CUSTOM"/tlb.conf
 echo 10
-  sed "s-Banner = See http://CQiNet.sf.net for more info.-Banner = $ECHO_LOCATION-" "$CUSTOM"/tbd.conf > "$CUSTOM"/tbd.temp
-  mv -f "$CUSTOM"/tbd.temp "$CUSTOM"/tbd.conf
+  sed "s-Banner = See http://CQiNet.sf.net for more info.-Banner = $ECHO_LOCATION-" "$CUSTOM"/tlb.conf > "$CUSTOM"/tlb.temp
+  mv -f "$CUSTOM"/tlb.temp "$CUSTOM"/tlb.conf
 echo 11
-  sed "s/;DirServerHost = server1.echolink.org/DirServerHost = oceania.echolink.org/" "$CUSTOM"/tbd.conf > "$CUSTOM"/tbd.temp
-  mv -f "$CUSTOM"/tbd.temp "$CUSTOM"/tbd.conf
+  sed "s/;DirServerHost = server1.echolink.org/DirServerHost = oceania.echolink.org/" "$CUSTOM"/tlb.conf > "$CUSTOM"/tlb.temp
+  mv -f "$CUSTOM"/tlb.temp "$CUSTOM"/tlb.conf
 echo 12
-  sed "s/;MaxConferenceClients = 8/MaxConferenceClients = $TBD_MAX_USERS/" "$CUSTOM"/tbd.conf > "$CUSTOM"/tbd.temp
-  mv -f "$CUSTOM"/tbd.temp "$CUSTOM"/tbd.conf
+  sed "s/;MaxConferenceClients = 8/MaxConferenceClients = $TLB_MAX_USERS/" "$CUSTOM"/tlb.conf > "$CUSTOM"/tlb.temp
+  mv -f "$CUSTOM"/tlb.temp "$CUSTOM"/tlb.conf
 echo 13
-  sed "s/;RTP_Pass = yetanothersecret/RTP_Pass = $TBD_PASS/" "$CUSTOM"/tbd.conf > "$CUSTOM"/tbd.temp
-  mv -f "$CUSTOM"/tbd.temp "$CUSTOM"/tbd.conf
+  sed "s/;RTP_Pass = yetanothersecret/RTP_Pass = $TLB_PASS/" "$CUSTOM"/tlb.conf > "$CUSTOM"/tlb.temp
+  mv -f "$CUSTOM"/tlb.temp "$CUSTOM"/tlb.conf
 echo 14
-  sed "s/;EnableDiskCommands = 0/EnableDiskCommands = 1/" "$CUSTOM"/tbd.conf > "$CUSTOM"/tbd.temp
-  mv -f "$CUSTOM"/tbd.temp "$CUSTOM"/tbd.conf
+  sed "s/;EnableDiskCommands = 0/EnableDiskCommands = 1/" "$CUSTOM"/tlb.conf > "$CUSTOM"/tlb.temp
+  mv -f "$CUSTOM"/tlb.temp "$CUSTOM"/tlb.conf
 echo 15
-  sed "s/;RunAsUser = tbd/RunAsUser = repeater/" "$CUSTOM"/tbd.conf > "$CUSTOM"/tbd.temp
-  mv -f "$CUSTOM"/tbd.temp "$CUSTOM"/tbd.conf
+  sed "s/;RunAsUser = tlb/RunAsUser = repeater/" "$CUSTOM"/tlb.conf > "$CUSTOM"/tlb.temp
+  mv -f "$CUSTOM"/tlb.temp "$CUSTOM"/tlb.conf
 echo 16
-  sed "s/;SB_Enable = 1/SB_Enable = 1/" "$CUSTOM"/tbd.conf > "$CUSTOM"/tbd.temp
-  mv -f "$CUSTOM"/tbd.temp "$CUSTOM"/tbd.conf
+  sed "s/;SB_Enable = 1/SB_Enable = 1/" "$CUSTOM"/tlb.conf > "$CUSTOM"/tlb.temp
+  mv -f "$CUSTOM"/tlb.temp "$CUSTOM"/tlb.conf
 echo 17
-  sed "s/;UserCountEnable = 1/UserCountEnable = 0/" "$CUSTOM"/tbd.conf > "$CUSTOM"/tbd.temp
-  mv -f "$CUSTOM"/tbd.temp "$CUSTOM"/tbd.conf
+  sed "s/;UserCountEnable = 1/UserCountEnable = 0/" "$CUSTOM"/tlb.conf > "$CUSTOM"/tlb.temp
+  mv -f "$CUSTOM"/tlb.temp "$CUSTOM"/tlb.conf
 echo 18
-  sed "s/;MaxCountEnable = 1/MaxCountEnable = 0/" "$CUSTOM"/tbd.conf > "$CUSTOM"/tbd.temp
-  mv -f "$CUSTOM"/tbd.temp "$CUSTOM"/tbd.conf
+  sed "s/;MaxCountEnable = 1/MaxCountEnable = 0/" "$CUSTOM"/tlb.conf > "$CUSTOM"/tlb.temp
+  mv -f "$CUSTOM"/tlb.temp "$CUSTOM"/tlb.conf
 echo 19
-  sed "s/;UserCountInLocation = 1/UserCountInLocation = 0/" "$CUSTOM"/tbd.conf > "$CUSTOM"/tbd.temp
-  mv -f "$CUSTOM"/tbd.temp "$CUSTOM"/tbd.conf
+  sed "s/;UserCountInLocation = 1/UserCountInLocation = 0/" "$CUSTOM"/tlb.conf > "$CUSTOM"/tlb.temp
+  mv -f "$CUSTOM"/tlb.temp "$CUSTOM"/tlb.conf
 echo 20
-  sed "s/;MaxPlayBackPause = 5/MaxPlayBackPause = 5/" "$CUSTOM"/tbd.conf > "$CUSTOM"/tbd.temp
-  mv -f "$CUSTOM"/tbd.temp "$CUSTOM"/tbd.conf
+  sed "s/;MaxPlayBackPause = 5/MaxPlayBackPause = 5/" "$CUSTOM"/tlb.conf > "$CUSTOM"/tlb.temp
+  mv -f "$CUSTOM"/tlb.temp "$CUSTOM"/tlb.conf
 echo 21
-  sed "s/;MinPlayBackPause = 0/MinPlayBackPause = 3/" "$CUSTOM"/tbd.conf > "$CUSTOM"/tbd.temp
-  mv -f "$CUSTOM"/tbd.temp "$CUSTOM"/tbd.conf
+  sed "s/;MinPlayBackPause = 0/MinPlayBackPause = 3/" "$CUSTOM"/tlb.conf > "$CUSTOM"/tlb.temp
+  mv -f "$CUSTOM"/tlb.temp "$CUSTOM"/tlb.conf
 echo 22
-  sed "s/;MaxPlayWithoutPause = 600/MaxPlayWithoutPause = 300/" "$CUSTOM"/tbd.conf > "$CUSTOM"/tbd.temp
-  mv -f "$CUSTOM"/tbd.temp "$CUSTOM"/tbd.conf
+  sed "s/;MaxPlayWithoutPause = 600/MaxPlayWithoutPause = 300/" "$CUSTOM"/tlb.conf > "$CUSTOM"/tlb.temp
+  mv -f "$CUSTOM"/tlb.temp "$CUSTOM"/tlb.conf
 echo 23
-  sed "s/;ShowStationInfo = 0/ShowStationInfo = 1/" "$CUSTOM"/tbd.conf > "$CUSTOM"/tbd.temp
-  mv -f "$CUSTOM"/tbd.temp "$CUSTOM"/tbd.conf
+  sed "s/;ShowStationInfo = 0/ShowStationInfo = 1/" "$CUSTOM"/tlb.conf > "$CUSTOM"/tlb.temp
+  mv -f "$CUSTOM"/tlb.temp "$CUSTOM"/tlb.conf
 echo 24
-  sed "s/;MaxPlayWithoutPause = 600/MaxPlayWithoutPause = 300/" "$CUSTOM"/tbd.conf > "$CUSTOM"/tbd.temp
-  mv -f "$CUSTOM"/tbd.temp "$CUSTOM"/tbd.conf
+  sed "s/;MaxPlayWithoutPause = 600/MaxPlayWithoutPause = 300/" "$CUSTOM"/tlb.conf > "$CUSTOM"/tlb.temp
+  mv -f "$CUSTOM"/tlb.temp "$CUSTOM"/tlb.conf
 echo 25
-  sed "s/;SF_Enable = 1/SF_Enable = 1/" "$CUSTOM"/tbd.conf > "$CUSTOM"/tbd.temp
-  mv -f "$CUSTOM"/tbd.temp "$CUSTOM"/tbd.conf
+  sed "s/;SF_Enable = 1/SF_Enable = 1/" "$CUSTOM"/tlb.conf > "$CUSTOM"/tlb.temp
+  mv -f "$CUSTOM"/tlb.temp "$CUSTOM"/tlb.conf
 echo 26
-  sed "s/;SF_Port = 2074/SF_Port = 2174/" "$CUSTOM"/tbd.conf > "$CUSTOM"/tbd.temp
-  mv -f "$CUSTOM"/tbd.temp "$CUSTOM"/tbd.conf
+  sed "s/;SF_Port = 2074/SF_Port = 2174/" "$CUSTOM"/tlb.conf > "$CUSTOM"/tlb.temp
+  mv -f "$CUSTOM"/tlb.temp "$CUSTOM"/tlb.conf
 echo 27
-  sed "s/;SF_ReplyPort = 2074/SF_ReplyPort = 2074/" "$CUSTOM"/tbd.conf > "$CUSTOM"/tbd.temp
-  mv -f "$CUSTOM"/tbd.temp "$CUSTOM"/tbd.conf
+  sed "s/;SF_ReplyPort = 2074/SF_ReplyPort = 2074/" "$CUSTOM"/tlb.conf > "$CUSTOM"/tlb.temp
+  mv -f "$CUSTOM"/tlb.temp "$CUSTOM"/tlb.conf
 echo 28
-  sed "s/;DefaultAutoLurk = 0/DefaultAutoLurk = 0/" "$CUSTOM"/tbd.conf > "$CUSTOM"/tbd.temp
-  mv -f "$CUSTOM"/tbd.temp "$CUSTOM"/tbd.conf
+  sed "s/;DefaultAutoLurk = 0/DefaultAutoLurk = 0/" "$CUSTOM"/tlb.conf > "$CUSTOM"/tlb.temp
+  mv -f "$CUSTOM"/tlb.temp "$CUSTOM"/tlb.conf
 echo 29
-  sed "s/;BlabOffTimer = 0/BlabOffTimer = 0/" "$CUSTOM"/tbd.conf > "$CUSTOM"/tbd.temp
-  mv -f "$CUSTOM"/tbd.temp "$CUSTOM"/tbd.conf
+  sed "s/;BlabOffTimer = 0/BlabOffTimer = 0/" "$CUSTOM"/tlb.conf > "$CUSTOM"/tlb.temp
+  mv -f "$CUSTOM"/tlb.temp "$CUSTOM"/tlb.conf
 echo 30
-  sed "s/;CmdPort = 5198/CmdPort = 5198/" "$CUSTOM"/tbd.conf > "$CUSTOM"/tbd.temp
-  mv -f "$CUSTOM"/tbd.temp "$CUSTOM"/tbd.conf
+  sed "s/;CmdPort = 5198/CmdPort = 5198/" "$CUSTOM"/tlb.conf > "$CUSTOM"/tlb.temp
+  mv -f "$CUSTOM"/tlb.temp "$CUSTOM"/tlb.conf
 echo 31
-  sed "s-;EventScript = /home/tbd/myscript-EventScript = $ID/scripts/echoirlp\-status-" "$CUSTOM"/tbd.conf > "$CUSTOM"/tbd.temp
-  mv -f "$CUSTOM"/tbd.temp "$CUSTOM"/tbd.conf
+  sed "s-;EventScript = /home/tlb/myscript-EventScript = $ID/scripts/echoirlp\-status-" "$CUSTOM"/tlb.conf > "$CUSTOM"/tlb.temp
+  mv -f "$CUSTOM"/tlb.temp "$CUSTOM"/tlb.conf
 echo 31
-  sed "s/;WriteHostFile = 1/WriteHostFile = 1/" "$CUSTOM"/tbd.conf > "$CUSTOM"/tbd.temp
-  mv -f "$CUSTOM"/tbd.temp "$CUSTOM"/tbd.conf
+  sed "s/;WriteHostFile = 1/WriteHostFile = 1/" "$CUSTOM"/tlb.conf > "$CUSTOM"/tlb.temp
+  mv -f "$CUSTOM"/tlb.temp "$CUSTOM"/tlb.conf
 echo 32
   echo "[ DONE ]"
-  rm -f "$CUSTOM"/tbd.conf.temp
+  rm -f "$CUSTOM"/tlb.conf.temp
   sleep 5
 
 #######################################
-#        end tbd.conf build           #
+#        end tlb.conf build           #
 #######################################
 
 #######################################
@@ -756,27 +758,27 @@ else
 fi
 
 cat <<-EOT >> $ENVFILE
-	# Variables for use with thebridge
-	export ECHO_TBD=$TBD_HOME
-	export ECHO_TBD_DATA=\$ECHO_TBD/data
-	export ECHO_TBD_ENABLE=YES
+	# Variables for use with thelinkbox
+	export ECHO_TLB=$TLB_HOME
+	export ECHO_TLB_DATA=\$ECHO_TLB/data
+	export ECHO_TLB_ENABLE=YES
 	
-	# Host thebridge gateway is running on (normally 127.0.0.1)
-	export ECHO_TBD_HOST=$TBD_IP
+	# Host thelinkbox gateway is running on (normally 127.0.0.1)
+	export ECHO_TLB_HOST=$TLB_IP
 	
-	# Port thebridge listens on for IRLP connection
-	export ECHO_TBD_LISTEN=2174
+	# Port thelinkbox listens on for IRLP connection
+	export ECHO_TLB_LISTEN=2174
 	
-	# port thebridge sends voice data to 
+	# port thelinkbox sends voice data to 
 	# (ispeaker needs to listen on this one)
-	export ECHO_TBD_SEND=2074
+	export ECHO_TLB_SEND=2074
 	
 	# Password for local gateway 
 	# (Don't rely on this, use ipchains/tables as well)
-	export ECHO_TBD_PASSWD=$TBD_PASS
+	export ECHO_TLB_PASSWD=$TLB_PASS
 	
-	# Control commands for thebridge
-	export ECHO_TBD_COMMAND="/usr/local/bin/tbdcmd"
+	# Control commands for thelinkbox
+	export ECHO_TLB_COMMAND="/usr/local/bin/tlbcmd"
 	
 	export ECHO_ENV=TRUE
 EOT
@@ -970,18 +972,18 @@ chmod 755 /home/irlp/custom/custom_off
 echo "########################################"
 echo "##### Install Step: 10 - start rc.irlp edit"
 echo "########################################"
-if ! (`grep "Starting the Bridge" /home/irlp/custom/rc.irlp &>/dev/null`) ; then
-  echo -n "Adding TBD startup to /home/irlp/custom/rc.irlp ... "
+if ! (`grep "Starting thelinkbox" /home/irlp/custom/rc.irlp &>/dev/null`) ; then
+  echo -n "Adding TLB startup to /home/irlp/custom/rc.irlp ... "
   echo "" >> /home/irlp/custom/rc.irlp
   cat <<-EOT >> /home/irlp/custom/rc.irlp
 	
-	echo "Starting the Bridge..."
-	service tbd restart
+	echo "Starting thelinkbox..."
+	service tlb restart
 	sleep 5
 EOT
   echo "[ DONE ]"
 else
-  echo "NOTE: rc.irlp already contains TBD startup code."
+  echo "NOTE: rc.irlp already contains TLB startup code."
 fi
 
 if ! (`grep "Enabling connections to the EchoLink Node" /home/irlp/custom/rc.irlp &>/dev/null`) ; then
