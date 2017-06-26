@@ -15,6 +15,7 @@ Prerequisites:
     You can reinstall IRLP from the backup using an IRLP reinstall script.
 
 EchoIRLP install modifies these IRLP files:
+
     /home/irlp/custom/rc.irlp
     /home/irlp/custom/custom_decode
     /home/irlp/custom/custom_on
