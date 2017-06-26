@@ -37,6 +37,7 @@ Steps to install EchoIRLP software on your IRLP system:
 Test by connecting to the EchoLink ECHOTEST service, EchoLink node 9999.
 Known Issues
 
-    Some have reported install failures, where the symptom is an empty tbd.conf file. So far, we have not been able to debug this. When this occurs, try installing again.
+    Some have reported install failures, where the symptom is an empty tbd.conf file. So far, we have not 
+    been able to debug this. When this occurs, try installing again.
 
 Anyone may browse and view the EchoIRLP code by opening their browser to https://github.com/wd5m/echoirlp/
