@@ -24,9 +24,9 @@ if [ -f "$LOCAL"/echoidle ] ; then
   IMIKEFLAG3="$ECHO_TBD_HOST":"$ECHO_TBD_LISTEN"
 
   if [ "$FORCE_8BIT" = "YES" ] ; then
-    "$BIN"/imike -8 "$IMIKEFLAG" $IMIKEFLAG2 $IMIKEFLAG3 >/dev/null 2>&1 &
+    aoss "$BIN"/imike -8 "$IMIKEFLAG" $IMIKEFLAG2 $IMIKEFLAG3 >/dev/null 2>&1 &
   else
-    "$BIN"/imike "$IMIKEFLAG" $IMIKEFLAG2 $IMIKEFLAG3 >/dev/null 2>&1 &
+    aoss "$BIN"/imike "$IMIKEFLAG" $IMIKEFLAG2 $IMIKEFLAG3 >/dev/null 2>&1 &
   fi
 
   TBD_COMMAND -q message "$ECHO_MYCALL$GT EchoIRLP node back from IRLP call."

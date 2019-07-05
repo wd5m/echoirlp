@@ -33,14 +33,14 @@ if [ -f /usr/bin/sox ] ; then
   while [ -n "$1" ];do
     if [ ! -f $ECHO_AUDIO/$1.ul ] ; then
       rm -f $RUN/temp.ul
-      /usr/bin/sox $ECHO_AUDIO/$1.wav $RUN/temp.ul
+      /usr/bin/sox $ECHO_AUDIO/$1.wav $RUN/temp.ul >/dev/null 2>&1
       cat $RUN/temp.ul >> $RUN/wavefile.ul
     else
       cat $ECHO_AUDIO/$1.ul >> $RUN/wavefile.ul
     fi
     shift
   done
-  /usr/bin/sox $RUN/wavefile.ul -s -u $RUN/wavefile.wav
+  /usr/bin/sox $RUN/wavefile.ul -s -u $RUN/wavefile.wav >/dev/null 2>&1
   WAVFILES="$RUN/wavefile.wav"
 else
   while [ -n "$1" ] ; do
@@ -53,7 +53,7 @@ $BIN/coscheck
 $BIN/key
 # Allows users to set the TXDELAY in the environment file
 usleep ${TXDELAY:-250000}
-$BIN/play $WAVFILES > /dev/null 2>&1
+aplay $WAVFILES > /dev/null 2>&1
 usleep 250000
 $BIN/unkey
 

@@ -112,7 +112,7 @@ if [ ! -f "$LOCAL"/enable -o ! -f "$LOCAL"/echo_enable ] ; then
 fi
 
 # Checks to make sure that the audio devices are readable by the repeater user
-if [ ! -w /dev/audio ] || [ ! -w /dev/mixer ] || [ ! -w /dev/dsp ] ; then
+if [ ! -w /dev/audio ] || [ ! -w /dev/mixer ] || [ ! -w /dev/dsp ] && [ ${USE_AOSS} != "YES" ] ; then
   log "AUDIO DEVICES NOT SET CORRECTLY"
   $SCRIPT/failure audiodev
   $SCRIPT/disable
@@ -304,9 +304,9 @@ IMIKEFLAG="-t"
 IMIKEFLAG3="$ECHO_TBD_HOST":"$ECHO_TBD_LISTEN"
 
 if [ "$FORCE_8BIT" = "YES" ] ; then
-  "$BIN"/imike -8 "$IMIKEFLAG" $IMIKEFLAG2 $IMIKEFLAG3 &>/dev/null &
+  aoss "$BIN"/imike -8 "$IMIKEFLAG" $IMIKEFLAG2 $IMIKEFLAG3 &>/dev/null &
 else
-  "$BIN"/imike "$IMIKEFLAG" $IMIKEFLAG2 $IMIKEFLAG3 &>/dev/null &
+  aoss "$BIN"/imike "$IMIKEFLAG" $IMIKEFLAG2 $IMIKEFLAG3 &>/dev/null &
 fi
 
 # We're connected to the local gateway, now to connect to the remote Echolink node

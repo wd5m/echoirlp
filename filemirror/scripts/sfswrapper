@@ -16,7 +16,7 @@ killall ispeaker >/dev/null 2>&1
 FLAGS="$FLAGS -p$ECHO_TBD_SEND"
 
 if [ "$FORCE_8BIT" = "YES" ] ; then
-  ($BIN/ispeaker -8 $FLAGS || (sleep 2 ; $BIN/unkey; $SCRIPT/sfswrapper)) >/dev/null 2>&1 &
+  (aoss $BIN/ispeaker -8 $FLAGS || (sleep 2 ; $BIN/unkey; $SCRIPT/sfswrapper)) >/dev/null 2>&1 &
 else
-  ($BIN/ispeaker $FLAGS || (sleep 2 ; $BIN/unkey ; $SCRIPT/sfswrapper)) >/dev/null 2>&1 &
+  (aoss $BIN/ispeaker $FLAGS || (sleep 2 ; $BIN/unkey ; $SCRIPT/sfswrapper)) >/dev/null 2>&1 &
 fi

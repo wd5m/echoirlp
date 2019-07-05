@@ -48,9 +48,9 @@ if [ -f "$LOCAL"/echoidle ] ; then
       $SCRIPT/sfswrapper
       IMIKEFLAG3="$ECHO_TBD_HOST":"$ECHO_TBD_LISTEN"
       if [ "$FORCE_8BIT" = "YES" ] ; then
-         "$BIN"/imike -8 "$IMIKEFLAG" $IMIKEFLAG2 $IMIKEFLAG3 &>/dev/null &
+         aoss "$BIN"/imike -8 "$IMIKEFLAG" $IMIKEFLAG2 $IMIKEFLAG3 &>/dev/null &
       else
-         "$BIN"/imike "$IMIKEFLAG" $IMIKEFLAG2 $IMIKEFLAG3 &>/dev/null &
+         aoss "$BIN"/imike "$IMIKEFLAG" $IMIKEFLAG2 $IMIKEFLAG3 &>/dev/null &
       fi
    fi   
    exit 0

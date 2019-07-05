@@ -48,7 +48,7 @@ if [ ! -f "$LOCAL"/enable -o ! -f "$LOCAL"/echo_enable ] ; then
 fi
 
 # Checks to make sure that the audio devices are readable by the repeater user
-if [ ! -w /dev/audio ] || [ ! -w /dev/mixer ] || [ ! -w /dev/dsp ] ; then
+if [ ! -w /dev/audio ] || [ ! -w /dev/mixer ] || [ ! -w /dev/dsp ] && [ ${USE_AOSS} != "YES" ] ; then
   echo "${0##*/}: AUDIO DEVICES NOT SET CORRECTLY"
   $SCRIPT/failure audiodev
   $SCRIPT/disable
@@ -239,9 +239,9 @@ if [ "$TERM" = "" -o "$TERM" = "unknown" -o "$TERM" = "dumb" ] ; then	#KF7FLY
 fi	#KF7FLY
 
 if [ "$FORCE_8BIT" = "YES" ] ; then
-  "$BIN"/imike -8 "$IMIKEFLAG" $IMIKEFLAG2 $NODE_IP &>/dev/null &
+  aoss "$BIN"/imike -8 "$IMIKEFLAG" $IMIKEFLAG2 $NODE_IP &>/dev/null &
 else
-  "$BIN"/imike "$IMIKEFLAG" $IMIKEFLAG2 $NODE_IP &>/dev/null &
+  aoss "$BIN"/imike "$IMIKEFLAG" $IMIKEFLAG2 $NODE_IP &>/dev/null &
 fi
 
 exit 0

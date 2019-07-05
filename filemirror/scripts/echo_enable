@@ -26,7 +26,7 @@ touch "$LOCAL"/echo_enable
 
 "$BIN"/forcekey
 usleep ${TXDELAY:-250000}
-play "$ECHO_AUDIO"/echoenabled.wav
+aplay "$ECHO_AUDIO"/echoenabled.wav
 usleep 250000
 "$BIN"/forceunkey
 

@@ -21,7 +21,7 @@ if [ -f "$LOCAL"/echo_enable ] ; then
   rm "$LOCAL"/echo_enable
   "$BIN"/forcekey
   usleep ${TXDELAY:-250000}
-  play "$ECHO_AUDIO"/echodisabled.wav
+  aplay "$ECHO_AUDIO"/echodisabled.wav
   usleep 250000
   "$BIN"/forceunkey
   "$ECHO_SCRIPT"/echo_status
