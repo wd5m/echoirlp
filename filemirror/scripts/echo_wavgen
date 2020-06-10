@@ -37,7 +37,7 @@ eval `awk '/*/ {print "TYPE=conference"}' "$1"`
 if [ "$TYPE" = "conference" ] ; then
   eval `awk '{gsub(/*/,""); gsub(/-/,""); gsub(/_/,"");
               print "SAY="$0}' "$1"`
-fi    
+fi
 # Is this a link?
 if [ "$TYPE" = "" ] ; then 
   eval `awk '/-L/ {print "TYPE=link"}' "$1"`
@@ -77,6 +77,16 @@ if [ "$CHAR9" != "" ] ; then cat "$ECHO_AUDIO"/"$CHAR9".ul >> /tmp/temp.ul ; fi
 if [ "$TYPE"  != "" ] ; then cat "$ECHO_AUDIO"/"$TYPE".ul  >> /tmp/temp.ul ; fi
 
 # Create file for EchoIRLP
-sox /tmp/temp.ul -u "$ECHO_AUDIO"/echo_id.wav
+# 2019-10-04 - VE7LTD
+# Use a consistent formula for SoX, as -u is deprecated, and throws an error in newer versions
+# using -e unsigned-integer works on new and old versions
+
+#if [ "$LINUX_OS" = "Debian" ] ; then
+#  sox -r 8000 -c 1 /tmp/temp.ul "$ECHO_AUDIO"/echo_id.wav >/dev/null 2>&1
+#else
+#  sox /tmp/temp.ul -u "$ECHO_AUDIO"/echo_id.wav >/dev/null 2>&1
+#fi
+
+sox -r 8000 -c 1 /tmp/temp.ul -r 8000 -c 1 -e unsigned-integer "$ECHO_AUDIO"/echo_id.wav
 
 exit 0

@@ -33,14 +33,15 @@ if [ -f /usr/bin/sox ] ; then
   while [ -n "$1" ];do
     if [ ! -f $ECHO_AUDIO/$1.ul ] ; then
       rm -f $RUN/temp.ul
-      /usr/bin/sox $ECHO_AUDIO/$1.wav $RUN/temp.ul >/dev/null 2>&1
+      /usr/bin/sox $ECHO_AUDIO/$1.wav $RUN/temp.ul
       cat $RUN/temp.ul >> $RUN/wavefile.ul
     else
       cat $ECHO_AUDIO/$1.ul >> $RUN/wavefile.ul
     fi
     shift
   done
-  /usr/bin/sox $RUN/wavefile.ul -s -u $RUN/wavefile.wav >/dev/null 2>&1
+#  /usr/bin/sox $RUN/wavefile.ul -s -u $RUN/wavefile.wav
+  /usr/bin/sox -r 8000 -c 1 $RUN/wavefile.ul -r 8000 -c 1 -e unsigned-integer $RUN/wavefile.wav
   WAVFILES="$RUN/wavefile.wav"
 else
   while [ -n "$1" ] ; do
@@ -53,7 +54,8 @@ $BIN/coscheck
 $BIN/key
 # Allows users to set the TXDELAY in the environment file
 usleep ${TXDELAY:-250000}
-aplay $WAVFILES > /dev/null 2>&1
+# Updated 15-Nov-2018 - OSS modules depreciated, adds aoss wrapper if USE_AOSS is YES - KB7B
+${PLAY} ${WAVFILES} >/dev/null 2>&1
 usleep 250000
 $BIN/unkey
 

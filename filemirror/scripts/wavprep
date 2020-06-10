@@ -15,14 +15,27 @@ if [ -f /usr/bin/sox ] ; then
   while [ -n "$1" ];do
     if [ ! -f $1.ul ] ; then 
       rm -f $RUN/temp.ul
-      /usr/bin/sox $1.wav $RUN/temp.ul
+      /usr/bin/sox $1.wav $RUN/temp.ul >/dev/null 2>&1
       cat $RUN/temp.ul >> $RUN/wavefile.ul
     else
       cat $1.ul >> $RUN/wavefile.ul
     fi
     shift
   done
-  /usr/bin/sox $RUN/wavefile.ul -s -u -w $ECHO_TBD_DATA/wavefile.wav
+
+# 2019-10-04 - VE7LTD
+# Update the SoX command to be universally accepted.
+# Added -b 16 Debian command-line switch needed by tbdcnv. KB7B 15-Nov-2018
+
+/usr/bin/sox -r 8000 -c 1 $RUN/wavefile.ul -b 16 -r 8000 -c 1 -e unsigned-integer $ECHO_TBD_DATA/wavefile.wav
+
+# Added -b 16 Debian command-line switch needed by tbdcnv. KB7B 15-Nov-2018
+#  if [ "$LINUX_OS" = "Debian" ] ; then
+#    /usr/bin/sox -b 16 -r 8000 -c 1 $RUN/wavefile.ul $ECHO_TBD_DATA/wavefile.wav >/dev/null 2>&1
+#  else
+#    /usr/bin/sox $RUN/wavefile.ul -s -u -w $ECHO_TBD_DATA/wavefile.wav >/dev/null 2>&1
+#  fi
+
   /usr/local/bin/tbdcnv -i $ECHO_TBD_DATA/wavefile.wav -o $ECHO_TBD_DATA/wavefile
   rm -f $ECHO_TBD_DATA/wavefile.wav
   rm -f $RUN/wavefile.ul

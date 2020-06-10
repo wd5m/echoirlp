@@ -26,12 +26,12 @@ function log {
    fi
 }
 
-# Only execute a tbdcmd if tbd is running.
+# Only execute a tbdcmd if tbd/tlb is running - KB7B 6-Feb-2019.
 TBD_COMMAND() {
 	local pid
-	pid=`/sbin/pidof -o $$ -o $PPID -o %PPID -x tbd`
+	pid=`/sbin/pidof -o $$ -o $PPID -o %PPID -x tbd tlb`
 	if [ "$pid" = "" ] ; then
-		log "tbd is not running..."
+		log "tbd/tlb is not running..."
 		return 1
 	fi
 	$ECHO_TBD_COMMAND "$@"
@@ -108,3 +108,85 @@ if [ "$ECHO_ENV" != "TRUE" ] ; then
   echo "DONE"
 fi
 
+# play
+# If aplay is available, we use it first
+if [ -f /usr/bin/aplay ] ; then
+  PLAY="/usr/bin/aplay -q"
+elif [ -f /bin/aplay ] ; then
+  PLAY="/bin/aplay -q"
+elif [ -f /usr/bin/play ] ; then
+  PLAY="/usr/bin/play"
+elif [ -f /bin/play ] ; then
+  PLAY="/bin/play"
+else
+  echo "`date '+%b %d %Y %T %z'` FAIL - play is not available" >> ${LOGFILE}
+  PLAY="${BIN}/play"
+fi
+
+# Added to get rid of the skipping audio on VIA chipsets on CentOS 4
+if [ "${USE_APLAY}" = "YES" ] ; then
+  if [ -f /usr/bin/aplay ] ; then
+    PLAY="/usr/bin/aplay -q"
+  elif [ -f /bin/aplay ] ; then
+    PLAY="/bin/aplay -q"
+  else
+    PLAY="/usr/bin/play"
+  fi
+fi
+
+# 7-May-2018 - Added code to create $IMIKE and $ISPEAKER tags, which properly
+# add the AOSS and -8 flags depending on the settings in the environment file
+#
+# AOSS should be default on all new installs, so the check will soon be obsolete.
+# Update - This is also applicable for CWPCM and DIAL programs - added
+
+
+# IMIKE
+# Note - Codecs are chosen in the scripts that call imike.
+# The default is "aoss imike", but we need to have the options for:
+# "imike"
+# "imike -8"
+# "aoss imike -8"
+
+if [ "${USE_AOSS}" = "YES" ] ; then
+  if [ "${FORCE_8BIT}" = "YES" ] ; then
+    IMIKE="aoss ${BIN}/imike -8"
+  else
+    IMIKE="aoss ${BIN}/imike"
+  fi
+else
+  if [ "${FORCE_8BIT}" = "YES" ] ; then
+    IMIKE="${BIN}/imike -8"
+  else
+    IMIKE="${BIN}/imike"
+  fi
+fi
+
+# ISPEAKER
+# Note - Codecs are chosen in the scripts that call ispeaker.
+# The default is "aoss ispeaker", but we need to have the options for:
+# "ispeaker"
+# "ispeaker -8"
+# "aoss ispeaker -8"
+
+if [ "${USE_AOSS}" = "YES" ] ; then
+  if [ "${FORCE_8BIT}" = "YES" ] ; then
+    ISPEAKER="aoss ${BIN}/ispeaker -8"
+  else
+    ISPEAKER="aoss ${BIN}/ispeaker"
+  fi
+else
+  if [ "${FORCE_8BIT}" = "YES" ] ; then
+    ISPEAKER="${BIN}/ispeaker -8"
+  else
+    ISPEAKER="${BIN}/ispeaker"
+  fi
+fi
+
+# DIAL - DTMF generator
+
+if [ "${USE_AOSS}" = "YES" ] ; then
+  DIAL="aoss ${BIN}/dial"
+else
+  DIAL="${BIN}/dial"
+fi

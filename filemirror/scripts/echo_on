@@ -28,7 +28,14 @@ STATIONID=`cat "$LOCAL"/active`
 # It is copied each time because IRLP resets it. 
 cp "$ECHO_AUDIO"/echolink.ul /tmp/echolink.ul
 cat /tmp/temp.ul >> /tmp/echolink.ul
-sox /tmp/echolink.ul "$AUDIO"/"$STATIONID"off.wav
+
+# 2019-10-04 - VE7LTD
+# Sox commands ion Debian no longer allow deprecated variables -s, -u, -w
+# They also throw errors when things aren't specified
+#sox /tmp/echolink.ul "$AUDIO"/"$STATIONID"off.wav >/dev/null 2>&1
+sox -r 8000 -c 1 /tmp/echolink.ul -r 8000 -c 1 -e unsigned-integer "$AUDIO"/"$STATIONID"off.wav
+
+
 
 # Set status page with EchoLink info
 $ECHO_SCRIPT/echo_status 
