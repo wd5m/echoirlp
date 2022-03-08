@@ -177,15 +177,55 @@ if [ "$NODE_CALL" = "" ] || [ "$NODE_CALL" = "Not Found" ] ; then
   "$SCRIPT"/failure noexist
   exit 0
 fi
+
+# Determines node type for access control
+# check for conference first
+
+eval `echo "$NODE_CALL" | awk '/*/ {print "TYPE=conference"}' -`
+# Is this a link?
+if [ "$TYPE" = "" ] ; then
+  eval `echo "$NODE_CALL" | awk '/-L/ {print "TYPE=link"}' -`
+fi
+# Is this a repeater?
+if [ "$TYPE" = "" ] ; then
+  eval `echo "$NODE_CALL" | awk '/-R/ {print "TYPE=repeater"}' -`
+fi
+if [ "$TYPE" = "" ] ; then
+  # Must be a Node number or Callsign
+  TYPE=user
+fi
+
+LOCKOUT=NO
+
+# Check if we're locking out any of the node types
+# i.e. conferences, links, repeaters or PC users
+if [ -f "$ECHO_CUSTOM"/type_deny ]; then
+  if [ `grep -x -i "$TYPE" "$ECHO_CUSTOM/type_deny"` ]; then
+    LOCKOUT=YES
+  fi
+fi
+
 # Check for nodes which are explicitly locked out
 ESCSTR=`echo "$NODE_CALL" | sed 's/\*/\\\*/g'`
 if [ -f "$ECHO_CUSTOM"/node_deny ] && [ "$1" != "9999" ] ; then
-  if [ `grep -x "$ESCSTR" "$ECHO_CUSTOM/node_deny"` ] || [ `grep -x "$1" "$ECHO_CUSTOM/node_deny"` ]; then
+  if [ `echo "$ESCSTR" | egrep -x -i -f "$ECHO_CUSTOM/node_deny"` ] || [ `echo "$1" | egrep -x -i -f "$ECHO_CUSTOM/node_deny"` ]; then
+    LOCKOUT=YES
+  fi
+fi
+
+# Check for nodes explicitly allowed.
+if [ -f "$ECHO_CUSTOM"/node_allow ]; then
+  if [ `echo "${ESCSTR}" | egrep -x -i -f "$ECHO_CUSTOM/node_allow"` ]  || [ `echo "$1" | egrep -x -i -f "$ECHO_CUSTOM/node_allow"` ]; then
+    LOCKOUT=NO
+  fi
+fi
+
+if [ "$LOCKOUT" = "YES" ] ; then
+  # not allowed to connect, inform and disconnect
     echo "${0##*/}: Node $1 $NODE_CALL is in your node_deny list"
     log "Call attempted to LOCKED-OUT node $1 $NODE_CALL"
     $SCRIPT/wavplay lockout_local
     exit 1
-  fi
 fi
 
 # Is the node a shared conference?
